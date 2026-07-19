@@ -49,9 +49,9 @@ import java.util.*;
 public class CarryCommand implements CommandExecutor, Listener {
 
     private final MainPlugin plugin;
-    private final NamespacedKey entityNbtKey;
-    private final NamespacedKey entityTypeKey;
-    private final NamespacedKey carryFlagKey;
+    final NamespacedKey entityNbtKey;
+    final NamespacedKey entityTypeKey;
+    final NamespacedKey carryFlagKey;
     private final NamespacedKey catcherFlagKey;
     private final File blacklistFile;
     private final Gson gson;
@@ -506,7 +506,7 @@ public class CarryCommand implements CommandExecutor, Listener {
     }
 
     // ========== 序列化实体（纯 Bukkit API） ==========
-    private String serializeEntityFullNbt(LivingEntity living) {
+    public String serializeEntityFullNbt(LivingEntity living) {
         Map<String, Object> data = new LinkedHashMap<>();
 
         // ---- 基础信息 ----

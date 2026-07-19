@@ -154,7 +154,13 @@ public class MainPlugin extends JavaPlugin {
             setExecutorIfExists("carry", carryCommand);
             getServer().getPluginManager().registerEvents(carryCommand, this);
 
+            // ========== 管理员生物捕捉器 ==========
+            AdminCatcherCommand adminCatcherCommand = new AdminCatcherCommand(this, carryCommand);
+            setExecutorIfExists("admincatcher", adminCatcherCommand);
+            getServer().getPluginManager().registerEvents(adminCatcherCommand, this);
+
             getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+
         } catch (Exception e) {
             getLogger().severe("MCCFK 模块初始化失败: " + e.getMessage());
             e.printStackTrace();

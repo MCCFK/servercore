@@ -216,6 +216,13 @@ commands:
     permission: mccfk.carry
     permission-message: §c你没有权限使用此命令！
 
+  admincatcher:
+    description: 获取管理员生物捕捉器 / Get admin catcher
+    usage: /<command>
+    aliases: [acatcher, 获取管理员生物捕捉器]
+    permission: mccfk.admincatcher
+    permission-message: §c你没有权限使用此命令！
+
   # ========== 邀请码系统 ==========
   invite:
     description: 邀请码系统
@@ -301,4 +308,8 @@ permissions:
   mccfk.carry:
     description: 允许使用 /carry 命令
     default: true
+
+  mccfk.admincatcher:
+    description: 允许使用 /admincatcher 命令
+    default: op
 
