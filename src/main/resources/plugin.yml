@@ -1,0 +1,304 @@
+name: ServerCore
+main: com.apple.servercore.MainPlugin
+version: 1.0
+api-version: 1.21
+author: apple9317,MCCFK
+description: acc服务器核心插件
+prefix: ServerCore
+load: POSTWORLD
+softdepend: [Vault,ProtocolLib,PlaceholderAPI]
+depend:
+  - PlaceholderAPI
+
+commands:
+  accraft:
+    description: 打开服务器主菜单
+    usage: /<command>
+    aliases: [ac, 菜单, cd]
+    permission: servercore.user
+    permission-message: §c你没有权限使用主菜单！
+
+  pvp:
+    description: 开启/关闭PVP
+    usage: /<command>
+    aliases: [开关PVP]
+    permission: servercore.pvp.use
+    permission-message: §c你没有权限修改PVP状态！
+
+  公告:
+    description: 打开服务器公告
+    usage: /<command>
+    aliases: [notice]
+    permission: servercore.user
+    permission-message: §c你没有权限查看公告！
+
+  guild:
+    description: 工会系统
+    usage: /<command>
+    aliases: [工会, 公会]
+    permission: servercore.guild.use
+    permission-message: §c你没有权限使用工会！
+
+  actp:
+    description: 传送菜单
+    usage: /<command>
+    aliases: [传送]
+    permission: servercore.user
+    permission-message: §c你没有权限传送！
+
+  actpasme:
+    description: 个人传送点
+    usage: /<command>
+    aliases: [个人传送, home]
+    permission: servercore.user
+    permission-message: §c你没有权限使用个人传送点！
+
+  acservercore:
+    description: 插件重载
+    usage: /<command> reload
+    aliases: [acsc]
+    permission: servercore.op
+    permission-message: §c仅管理员可使用！
+
+  gift:
+    description: 每日签到
+    usage: /<command>
+    aliases: [签到]
+    permission: servercore.user
+    permission-message: §c你不能签到！
+
+  accoin:
+    description: AC币管理指令(OP)
+    usage: /<command>
+    aliases: [ac币]
+    permission: servercore.op
+    permission-message: §c仅管理员可使用AC币管理！
+
+  title:
+    description: 称号系统
+    usage: /<command>
+    aliases: [称号]
+    permission: servercore.user
+    permission-message: §c你没有权限使用称号！
+
+  rank:
+    description: 打开服务器排行榜
+    usage: /<command>
+    aliases: [排行榜, 榜单]
+    permission: servercore.user
+    permission-message: §c你没有权限查看排行榜！
+
+  music:
+    description: 打开音乐菜单
+    usage: /<command>
+    aliases: [音乐, 点歌]
+    permission: servercore.user
+    permission-message: §c你没有权限使用音乐！
+
+  onlinetime:
+    description: 查看自己在线时间
+    usage: /<command>
+    aliases: [在线时间, 时长]
+    permission: servercore.user
+    permission-message: §c你没有权限查看在线时间！
+
+  # ========== 苹果币和飞行指令 ==========
+  applecoins:
+    description: 苹果币系统
+    usage: /<command> <info|shop|exchange|add|remove|see|set>
+    aliases: [苹果币]
+    permission: servercore.user
+    permission-message: §c你没有权限使用苹果币系统！
+
+  acfly:
+    description: 切换飞行模式
+    usage: /<command>
+    aliases: [飞行, fly]
+    permission: servercore.user
+    permission-message: §c你没有权限使用飞行！
+
+  # ========== 传送请求指令 ==========
+  tpa:
+    description: 向玩家发送传送请求
+    usage: /<command> <玩家名>
+    aliases: [传我]
+    permission: servercore.user
+    permission-message: §c你没有权限使用传送请求！
+
+  tphere:
+    description: 邀请玩家传送到你身边
+    usage: /<command> <玩家名>
+    aliases: [拉人]
+    permission: servercore.user
+    permission-message: §c你没有权限使用传送邀请！
+
+  tpaaccept:
+    description: 接受传送请求
+    usage: /<command> [玩家名]
+    aliases: [接受传送]
+    permission: servercore.user
+    permission-message: §c你没有权限接受传送请求！
+
+  tpadeny:
+    description: 拒绝传送请求
+    usage: /<command> [玩家名]
+    aliases: [拒绝传送]
+    permission: servercore.user
+    permission-message: §c你没有权限拒绝传送请求！
+
+  # ========== MCCFK 命令 ==========
+  rtp:
+    description: 随机传送
+    usage: /<command>
+    permission: mccfk.rtp
+    permission-message: §c你没有权限使用此命令！
+
+  back:
+    description: 返回上一个位置
+    usage: /<command>
+    permission: mccfk.back
+    permission-message: §c你没有权限使用此命令！
+
+  dback:
+    description: 返回死亡点
+    usage: /<command>
+    permission: mccfk.dback
+    permission-message: §c你没有权限使用此命令！
+
+  enderchest:
+    description: 打开末影箱
+    aliases: [ec, echest]
+    usage: /<command>
+    permission: mccfk.enderchest
+    permission-message: §c你没有权限使用此命令！
+
+  craftingtable:
+    description: 打开工作台
+    aliases: [craft, workbench]
+    usage: /<command>
+    permission: mccfk.craftingtable
+    permission-message: §c你没有权限使用此命令！
+
+  suicide:
+    description: 自杀
+    usage: /<command>
+    permission: mccfk.suicide
+    permission-message: §c你没有权限使用此命令！
+
+  msg:
+    description: 发送私聊消息
+    aliases: [tell, whisper]
+    usage: /<command> <玩家> <消息>
+    permission: mccfk.msg
+    permission-message: §c你没有权限使用此命令！
+
+  w:
+    description: 发送私聊消息
+    usage: /<command> <玩家> <消息>
+    permission: mccfk.msg
+    permission-message: §c你没有权限使用此命令！
+
+  ride:
+    description: 骑乘目标实体或玩家
+    usage: /<command> [玩家]
+    permission: mccfk.ride
+    permission-message: §c你没有权限使用此命令！
+
+  sit:
+    description: 原地坐下
+    usage: /<command>
+    permission: mccfk.sit
+    permission-message: §c你没有权限使用此命令！
+
+  carry:
+    description: 将目标实体变成生物蛋
+    usage: /<command>
+    permission: mccfk.carry
+    permission-message: §c你没有权限使用此命令！
+
+  # ========== 邀请码系统 ==========
+  invite:
+    description: 邀请码系统
+    usage: /<command> <create|input>
+    aliases: [邀请码]
+    permission: servercore.user
+    permission-message: §c你没有权限使用邀请码系统！
+
+permissions:
+  servercore.op:
+    description: 管理员总权限
+    default: op
+    children:
+      servercore.reload: true
+
+  servercore.user:
+    description: 玩家基础权限
+    default: true
+    children:
+      servercore.pvp.use: true
+      servercore.guild.use: true
+
+  servercore.pvp.use:
+    default: true
+
+  servercore.guild.use:
+    default: true
+
+  # ✅ 新增：公会管理权限
+  servercore.guild.manage:
+    description: 允许管理公会成员（邀请/踢人/设置副会长）
+    default: true
+
+  # ✅ 新增：创建公会权限
+  servercore.guild.create:
+    description: 允许创建公会
+    default: true
+
+  servercore.reload:
+    default: op
+
+  # ========== MCCFK 权限 ==========
+  mccfk.rtp:
+    description: 允许使用 /rtp 命令
+    default: true
+
+  mccfk.back:
+    description: 允许使用 /back 命令
+    default: true
+
+  mccfk.dback:
+    description: 允许使用 /dback 命令
+    default: true
+
+  mccfk.enderchest:
+    description: 允许使用 /enderchest 命令
+    default: true
+
+  mccfk.craftingtable:
+    description: 允许使用 /craftingtable 命令
+    default: true
+
+  mccfk.suicide:
+    description: 允许使用 /suicide 命令
+    default: true
+
+  mccfk.msg:
+    description: 允许使用 /msg /w 命令
+    default: true
+
+  mccfk.w:
+    description: 允许使用 /w 命令
+    default: true
+
+  mccfk.ride:
+    description: 允许使用 /ride 命令
+    default: true
+
+  mccfk.sit:
+    description: 允许使用 /sit 命令
+    default: true
+
+  mccfk.carry:
+    description: 允许使用 /carry 命令
+    default: true
+

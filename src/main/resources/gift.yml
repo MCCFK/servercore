@@ -1,0 +1,56 @@
+
+mouth:
+  4:
+    1:
+      rewards:
+        - type: TITLE
+          title: "&6[初来乍到]"
+
+        - type: ACCOIN
+          amount: 100
+
+        - type: ITEM
+          material: IRON_INGOT
+          amount: 16
+
+    2:
+      rewards:
+        - type: ACCOIN
+          amount: 150
+
+        - type: ITEM
+          material: GOLDEN_APPLE
+          amount: 1
+
+    3:
+      rewards:
+        - type: TITLE
+          title: "&e[勤劳小蜜蜂]"
+
+        - type: ENCHANT_ITEM
+          material: DIAMOND_SWORD
+          amount: 1
+          enchantments:
+            minecraft:sharpness: 1
+            minecraft:unbreaking: 1
+
+    4:
+      rewards:
+        - type: ACCOIN
+          amount: 200
+
+        - type: ITEM
+          material: DIAMOND
+          amount: 3
+
+    5:
+      rewards:
+        - type: TITLE
+          title: "&d[签到王者]"
+
+        - type: ENCHANT_ITEM
+          material: DIAMOND_CHESTPLATE
+          amount: 1
+          enchantments:
+            minecraft:protection: 1
+            minecraft:unbreaking: 1
