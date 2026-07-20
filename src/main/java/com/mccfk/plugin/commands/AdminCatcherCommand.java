@@ -18,7 +18,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -33,6 +37,8 @@ public class AdminCatcherCommand implements CommandExecutor, Listener {
     private final NamespacedKey adminCatcherFlagKey;
     private final CarryCommand carryCommand;
     private final Gson gson;
+    // 已捕捉实体ID集合（防 PlayerInteractEvent 和 PlayerInteractEntityEvent 重复捕捉）
+    private final Set<Integer> capturedThisTick = new HashSet<>();
 
     // 无生物蛋实体的对应物品贴图
     private static final Map<String, Material> FALLBACK_MATERIALS = new HashMap<>();
@@ -106,6 +112,9 @@ public class AdminCatcherCommand implements CommandExecutor, Listener {
         this.carryCommand = carryCommand;
         this.adminCatcherFlagKey = new NamespacedKey(plugin, "admin_catcher_flag");
         this.gson = new GsonBuilder().create();
+
+        // 每tick清理已捕捉记录
+        plugin.getServer().getScheduler().runTaskTimer(plugin, capturedThisTick::clear, 1L, 1L);
     }
 
     @Override
@@ -173,6 +182,48 @@ public class AdminCatcherCommand implements CommandExecutor, Listener {
             return;
         }
 
+        captureEntity(player, target);
+    }
+
+    // ========== 射线追踪兜底（捕捉 PlayerInteractEntityEvent 无法触发的实体） ==========
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
+        Player player = event.getPlayer();
+        if (!player.isOp()) return;
+
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item.getType().isAir() || !item.hasItemMeta()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        if (!meta.getPersistentDataContainer().has(adminCatcherFlagKey, PersistentDataType.BYTE)) return;
+
+        // 射线追踪查找附近实体
+        RayTraceResult result = player.rayTraceEntities(10, false);
+        if (result == null || result.getHitEntity() == null) return;
+
+        Entity target = result.getHitEntity();
+
+        // 防重复捕捉（PlayerInteractEntityEvent 可能已处理同一实体）
+        if (capturedThisTick.contains(target.getEntityId())) return;
+
+        if (target instanceof Player) {
+            player.sendMessage("§c不能捕捉玩家！/ Cannot capture players!");
+            return;
+        }
+
+        event.setCancelled(true);
+        captureEntity(player, target);
+    }
+
+    /**
+     * 捕捉实体的核心逻辑
+     */
+    private void captureEntity(Player player, Entity target) {
         String entityKey = target.getType().getKey().getKey();
 
         // 确定容器物品材质：有生物蛋用生物蛋，没有则用对应贴图，再无则村民刷怪蛋兜底
@@ -226,6 +277,9 @@ public class AdminCatcherCommand implements CommandExecutor, Listener {
 
             player.sendMessage("§a已捕捉 " + formatEntityName(target) + " §a！/ Captured!");
             plugin.getLogger().info("§c[管理员捕捉器] 玩家 " + player.getName() + " 捕捉了 " + entityKey);
+
+            // 记录已捕捉实体ID，防止 PlayerInteractEvent 重复捕捉
+            capturedThisTick.add(target.getEntityId());
 
         } catch (Exception e) {
             player.sendMessage("§c捕捉失败: " + e.getMessage());
@@ -290,5 +344,13 @@ public class AdminCatcherCommand implements CommandExecutor, Listener {
             return entity.getCustomName();
         }
         return "§f" + entity.getName();
+    }
+
+    public static Set<String> getTechnicalEntityKeys() {
+        return FALLBACK_MATERIALS.keySet();
+    }
+
+    public static Material getFallbackMaterial(String entityKey) {
+        return FALLBACK_MATERIALS.get(entityKey);
     }
 }

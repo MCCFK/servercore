@@ -152,12 +152,20 @@ public class MainPlugin extends JavaPlugin {
             // ========== 搬运指令 ==========
             carryCommand = new CarryCommand(this);
             setExecutorIfExists("carry", carryCommand);
+            setExecutorIfExists("fuckcarry", carryCommand);
+            setExecutorIfExists("unfuckcarry", carryCommand);
+            setExecutorIfExists("bancarry", carryCommand);
+            setExecutorIfExists("unbancarry", carryCommand);
             getServer().getPluginManager().registerEvents(carryCommand, this);
 
             // ========== 管理员生物捕捉器 ==========
             AdminCatcherCommand adminCatcherCommand = new AdminCatcherCommand(this, carryCommand);
             setExecutorIfExists("admincatcher", adminCatcherCommand);
             getServer().getPluginManager().registerEvents(adminCatcherCommand, this);
+
+            // ========== 获取技术实体 ==========
+            TechEntityCommand techEntityCommand = new TechEntityCommand(this, carryCommand);
+            setExecutorIfExists("获取技术实体", techEntityCommand);
 
             getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 

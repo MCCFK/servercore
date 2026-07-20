@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -37,6 +38,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.EulerAngle;
 import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -54,8 +56,10 @@ public class CarryCommand implements CommandExecutor, Listener {
     final NamespacedKey carryFlagKey;
     private final NamespacedKey catcherFlagKey;
     private final File blacklistFile;
+    private final File bannedPlayersFile;
     private final Gson gson;
     private final Set<String> blacklist = new HashSet<>();
+    private final Set<String> bannedPlayers = new HashSet<>();
 
     // 村民搬运确认缓存: 玩家UUID -> (实体UUID, 时间戳)
     private final Map<UUID, Map.Entry<UUID, Long>> villagerConfirmMap = new HashMap<>();
@@ -95,25 +99,51 @@ public class CarryCommand implements CommandExecutor, Listener {
         File carryFolder = new File(pluginsFolder, "carry");
         if (!carryFolder.exists()) carryFolder.mkdirs();
         this.blacklistFile = new File(carryFolder, "blacklist.json");
+        this.bannedPlayersFile = new File(carryFolder, "banned_players.json");
         loadBlacklist();
+        loadBannedPlayers();
+
+        // 每5秒自动从文件重载黑名单
+        plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, this::reloadBlacklistFromFile, 100L, 100L);
     }
 
     // ========== 黑名单管理 ==========
 
     private void loadBlacklist() {
         blacklist.clear();
-        blacklist.addAll(DEFAULT_BLACKLIST);
         if (!blacklistFile.exists()) {
+            // 文件不存在时使用默认黑名单并保存
+            blacklist.addAll(DEFAULT_BLACKLIST);
             saveBlacklist();
+            plugin.getLogger().info("§7[搬运] 已创建默认黑名单文件，共 " + blacklist.size() + " 个实体");
             return;
         }
         try (FileReader reader = new FileReader(blacklistFile)) {
             Type listType = new TypeToken<List<String>>() {}.getType();
             List<String> loaded = gson.fromJson(reader, listType);
-            if (loaded != null) blacklist.addAll(loaded);
+            if (loaded != null && !loaded.isEmpty()) {
+                blacklist.addAll(loaded);
+            } else {
+                // 文件为空或格式异常时回退默认
+                blacklist.addAll(DEFAULT_BLACKLIST);
+            }
             plugin.getLogger().info("§7[搬运] 已加载 " + blacklist.size() + " 个黑名单实体");
         } catch (IOException e) {
             plugin.getLogger().severe("§c[搬运] 加载黑名单失败: " + e.getMessage());
+            blacklist.addAll(DEFAULT_BLACKLIST);
+        }
+    }
+
+    private void reloadBlacklistFromFile() {
+        try (FileReader reader = new FileReader(blacklistFile)) {
+            Type listType = new TypeToken<List<String>>() {}.getType();
+            List<String> loaded = gson.fromJson(reader, listType);
+            if (loaded != null && !loaded.isEmpty()) {
+                blacklist.clear();
+                blacklist.addAll(loaded);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("§e[搬运] 定时重载黑名单失败: " + e.getMessage());
         }
     }
 
@@ -122,6 +152,34 @@ public class CarryCommand implements CommandExecutor, Listener {
             gson.toJson(new ArrayList<>(blacklist), writer);
         } catch (IOException e) {
             plugin.getLogger().severe("§c[搬运] 保存黑名单失败: " + e.getMessage());
+        }
+    }
+
+    // ========== 玩家禁用管理 ==========
+
+    private void loadBannedPlayers() {
+        bannedPlayers.clear();
+        if (!bannedPlayersFile.exists()) {
+            saveBannedPlayers();
+            return;
+        }
+        try (FileReader reader = new FileReader(bannedPlayersFile)) {
+            Type listType = new TypeToken<List<String>>() {}.getType();
+            List<String> loaded = gson.fromJson(reader, listType);
+            if (loaded != null) {
+                bannedPlayers.addAll(loaded);
+            }
+            plugin.getLogger().info("§7[搬运] 已加载 " + bannedPlayers.size() + " 个被禁用玩家");
+        } catch (IOException e) {
+            plugin.getLogger().severe("§c[搬运] 加载禁用玩家列表失败: " + e.getMessage());
+        }
+    }
+
+    private void saveBannedPlayers() {
+        try (FileWriter writer = new FileWriter(bannedPlayersFile)) {
+            gson.toJson(new ArrayList<>(bannedPlayers), writer);
+        } catch (IOException e) {
+            plugin.getLogger().severe("§c[搬运] 保存禁用玩家列表失败: " + e.getMessage());
         }
     }
 
@@ -265,8 +323,55 @@ public class CarryCommand implements CommandExecutor, Listener {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        String cmd = command.getName().toLowerCase();
+
+        // ========== 禁用/启用玩家搬运 ==========
+        if (cmd.equals("fuckcarry") || cmd.equals("bancarry") || cmd.equals("unfuckcarry") || cmd.equals("unbancarry")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("§c你没有权限使用此命令！");
+                return true;
+            }
+            if (args.length < 1) {
+                sender.sendMessage("§c用法: /" + label + " <玩家名>");
+                return true;
+            }
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target == null) {
+                sender.sendMessage("§c玩家 " + args[0] + " 不在线！");
+                return true;
+            }
+            String uuidStr = target.getUniqueId().toString();
+            boolean isBan = cmd.equals("fuckcarry") || cmd.equals("bancarry");
+            if (isBan) {
+                if (bannedPlayers.contains(uuidStr)) {
+                    sender.sendMessage("§c玩家 " + target.getName() + " 已被禁止使用搬运！");
+                    return true;
+                }
+                bannedPlayers.add(uuidStr);
+                saveBannedPlayers();
+                sender.sendMessage("§a已禁止玩家 " + target.getName() + " 使用搬运！");
+                plugin.getLogger().info("§c[搬运] 玩家 " + target.getName() + " 被禁止使用搬运，执行者: " + sender.getName());
+            } else {
+                if (!bannedPlayers.remove(uuidStr)) {
+                    sender.sendMessage("§c玩家 " + target.getName() + " 未被禁止使用搬运！");
+                    return true;
+                }
+                saveBannedPlayers();
+                sender.sendMessage("§a已允许玩家 " + target.getName() + " 使用搬运！");
+                plugin.getLogger().info("§a[搬运] 玩家 " + target.getName() + " 被允许使用搬运，执行者: " + sender.getName());
+            }
+            return true;
+        }
+
+        // ========== 搬运指令 ==========
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c该命令只能由玩家执行！");
+            return true;
+        }
+
+        // 检查玩家是否被禁止搬运
+        if (bannedPlayers.contains(player.getUniqueId().toString())) {
+            player.sendMessage("§c你已被禁止使用搬运！");
             return true;
         }
 
@@ -340,7 +445,6 @@ public class CarryCommand implements CommandExecutor, Listener {
             }
 
             player.sendMessage("§a已将 " + formatEntityName(target) + " §a变为生物蛋！");
-            plugin.getLogger().info("§a[搬运] 玩家 " + player.getName() + " 搬运了 " + entityKey);
 
         } catch (Exception e) {
             player.sendMessage("§c搬运失败: " + e.getMessage());
@@ -355,7 +459,7 @@ public class CarryCommand implements CommandExecutor, Listener {
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.RIGHT_CLICK_AIR) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Player player = event.getPlayer();
@@ -376,15 +480,32 @@ public class CarryCommand implements CommandExecutor, Listener {
             return;
         }
 
-        Block clickedBlock = event.getClickedBlock();
-        BlockFace face = event.getBlockFace();
-        if (clickedBlock == null) return;
-
-        Location spawnLoc = clickedBlock.getRelative(face).getLocation().add(0.5, 0, 0.5);
+        Location spawnLoc;
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            Block clickedBlock = event.getClickedBlock();
+            BlockFace face = event.getBlockFace();
+            if (clickedBlock == null) return;
+            spawnLoc = clickedBlock.getRelative(face).getLocation().add(0.5, 0, 0.5);
+        } else {
+            // 空气右键：在玩家视线前方生成
+            spawnLoc = player.getEyeLocation().add(player.getLocation().getDirection().normalize().multiply(2));
+        }
 
         try {
             // 完整 NBT 反序列化还原实体（全部状态完全恢复）
-            deserializeAndSpawn(spawnLoc.getWorld(), spawnLoc, nbtString);
+            Entity spawned = deserializeAndSpawn(spawnLoc.getWorld(), spawnLoc, nbtString);
+
+            // 非潜行时投掷物以发射方式释放
+            if (spawned != null && !player.isSneaking() && spawned instanceof Projectile) {
+                Vector dir = player.getLocation().getDirection().normalize().multiply(2.0);
+                spawned.setVelocity(dir);
+            }
+
+            // 检查并显示实体释放提示（含频率检测）
+            boolean shouldShowHint = plugin.getPersonalSettings().checkAndNotifyEntityRelease(player);
+            if (shouldShowHint) {
+                player.sendMessage("§a已释放实体！");
+            }
 
             // 消耗物品
             if (item.getAmount() > 1) {
@@ -392,9 +513,6 @@ public class CarryCommand implements CommandExecutor, Listener {
             } else {
                 player.getInventory().setItemInMainHand(null);
             }
-
-            player.sendMessage("§a已释放实体！");
-            plugin.getLogger().info("§a[搬运] 玩家 " + player.getName() + " 释放了 " + typeStr);
 
         } catch (Exception e) {
             player.sendMessage("§c实体释放失败: " + e.getMessage());
@@ -438,6 +556,13 @@ public class CarryCommand implements CommandExecutor, Listener {
         event.setCancelled(true);
 
         Entity target = event.getRightClicked();
+
+        // 检查玩家是否被禁止搬运
+        if (bannedPlayers.contains(player.getUniqueId().toString())) {
+            player.sendMessage("§c你已被禁止使用搬运！");
+            return;
+        }
+
         if (target instanceof Player) {
             player.sendMessage("§c不能将玩家变成生物蛋！");
             return;
@@ -496,7 +621,6 @@ public class CarryCommand implements CommandExecutor, Listener {
             }
 
             player.sendMessage("§a已将 " + formatEntityName(target) + " §a变为生物蛋！");
-            plugin.getLogger().info("§a[搬运] 玩家 " + player.getName() + " 使用捕捉器搬运了 " + entityKey);
 
         } catch (Exception e) {
             player.sendMessage("§c捕捉失败: " + e.getMessage());
@@ -885,6 +1009,11 @@ public class CarryCommand implements CommandExecutor, Listener {
             data.put("enderman_screaming", enderman.isScreaming());
         }
 
+        // ---- 铁傀儡 ----
+        if (living instanceof IronGolem ironGolem) {
+            data.put("iron_golem_player_created", ironGolem.isPlayerCreated());
+        }
+
 
     }
 
@@ -909,7 +1038,7 @@ public class CarryCommand implements CommandExecutor, Listener {
     }
 
     // ========== 反序列化实体（纯 Bukkit API） ==========
-    private void deserializeAndSpawn(World world, Location loc, String jsonData) throws Exception {
+    private Entity deserializeAndSpawn(World world, Location loc, String jsonData) throws Exception {
         Type type = new TypeToken<Map<String, Object>>() {}.getType();
         Map<String, Object> data = gson.fromJson(jsonData, type);
 
@@ -938,7 +1067,7 @@ public class CarryCommand implements CommandExecutor, Listener {
         }
 
         if (!(spawned instanceof LivingEntity living)) {
-            return;
+            return spawned;
         }
 
         // ---- 恢复生命值 ----
@@ -1039,7 +1168,7 @@ public class CarryCommand implements CommandExecutor, Listener {
         // ---- 移动到正确位置 ----
         spawned.teleport(loc);
 
-        plugin.getLogger().info("§a[搬运] 实体完全恢复: " + entityTypeStr);
+        return spawned;
     }
 
     // ========== 反序列化物品 ==========
@@ -1544,6 +1673,13 @@ public class CarryCommand implements CommandExecutor, Listener {
                 } catch (Exception ignored) {}
             }
             if (data.containsKey("enderman_screaming")) enderman.setScreaming((boolean) data.get("enderman_screaming"));
+        }
+
+        // ---- 铁傀儡 ----
+        if (living instanceof IronGolem ironGolem) {
+            if (data.containsKey("iron_golem_player_created")) {
+                ironGolem.setPlayerCreated((boolean) data.get("iron_golem_player_created"));
+            }
         }
     }
 

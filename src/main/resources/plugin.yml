@@ -223,6 +223,37 @@ commands:
     permission: mccfk.admincatcher
     permission-message: §c你没有权限使用此命令！
 
+  fuckcarry:
+    description: 禁止玩家使用搬运
+    usage: /<command> <玩家>
+    permission: mccfk.carry.ban
+    permission-message: §c你没有权限使用此命令！
+
+  unfuckcarry:
+    description: 允许玩家使用搬运
+    usage: /<command> <玩家>
+    permission: mccfk.carry.ban
+    permission-message: §c你没有权限使用此命令！
+
+  bancarry:
+    description: 禁止玩家使用搬运
+    usage: /<command> <玩家>
+    permission: mccfk.carry.ban
+    permission-message: §c你没有权限使用此命令！
+
+  unbancarry:
+    description: 允许玩家使用搬运
+    usage: /<command> <玩家>
+    permission: mccfk.carry.ban
+    permission-message: §c你没有权限使用此命令！
+
+  # ========== 获取技术实体 ==========
+  获取技术实体:
+    description: 获取所有技术实体的蛋
+    usage: /<command>
+    permission: mccfk.admincatcher
+    permission-message: §c你没有权限使用此命令！
+
   # ========== 邀请码系统 ==========
   invite:
     description: 邀请码系统
@@ -309,7 +340,11 @@ permissions:
     description: 允许使用 /carry 命令
     default: true
 
+  mccfk.carry.ban:
+    description: 允许使用 /fuckcarry /bancarry 命令禁止玩家搬运
+    default: op
+
   mccfk.admincatcher:
-    description: 允许使用 /admincatcher 命令
+    description: 允许使用 /admincatcher 和 /获取技术实体 命令
     default: op
 

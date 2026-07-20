@@ -51,6 +51,13 @@ public class PersonalSettings implements Listener {
     // ========== 是否允许被其他玩家骑乘（默认允许） ==========
     private final Map<UUID, Boolean> allowBeRidden = new HashMap<>();
 
+    // ========== 显示实体释放提示（默认开启） ==========
+    private final Map<UUID, Boolean> showEntityReleaseHint = new HashMap<>();
+
+    // ========== 实体释放频率检测 ==========
+    private final Map<UUID, Long> lastEntityReleaseTime = new HashMap<>();
+    private final Map<UUID, Integer> entityReleaseCount = new HashMap<>();
+
     // 潜行检测
     private final Map<UUID, Integer> sneakCount = new HashMap<>();
     private final Map<UUID, Long> sneakTime = new HashMap<>();
@@ -100,6 +107,8 @@ public class PersonalSettings implements Listener {
                 disablePhantomSpawn.put(uuid, map.getOrDefault("disablePhantomSpawn", false));
                 // ========== 加载是否允许被骑设置（默认允许） ==========
                 allowBeRidden.put(uuid, map.getOrDefault("allowBeRidden", true));
+                // ========== 加载实体释放提示设置（默认开启） ==========
+                showEntityReleaseHint.put(uuid, map.getOrDefault("showEntityReleaseHint", true));
             }
             plugin.getLogger().info("§a玩家设置已加载，共 " + data.size() + " 个玩家");
         } catch (Exception ex) {
@@ -122,6 +131,7 @@ public class PersonalSettings implements Listener {
             allUuids.addAll(tpRequestGuiEnabled.keySet());
             allUuids.addAll(disablePhantomSpawn.keySet());
             allUuids.addAll(allowBeRidden.keySet());
+            allUuids.addAll(showEntityReleaseHint.keySet());
 
             Map<String, Map<String, Boolean>> data = new HashMap<>();
             for (UUID uuid : allUuids) {
@@ -135,6 +145,8 @@ public class PersonalSettings implements Listener {
                 map.put("disablePhantomSpawn", disablePhantomSpawn.getOrDefault(uuid, false));
                 // ========== 保存是否允许被骑设置 ==========
                 map.put("allowBeRidden", allowBeRidden.getOrDefault(uuid, true));
+                // ========== 保存实体释放提示设置 ==========
+                map.put("showEntityReleaseHint", showEntityReleaseHint.getOrDefault(uuid, true));
                 data.put(uuid.toString(), map);
             }
             try (FileWriter writer = new FileWriter(settingsFile)) {
@@ -199,6 +211,61 @@ public class PersonalSettings implements Listener {
         allowBeRidden.put(uuid, !current);
         saveSettings();
         p.sendMessage("§a允许被骑乘已" + (!current ? "§a开启" : "§c关闭"));
+    }
+
+    // ========== 实体释放提示开关 ==========
+    public boolean isShowEntityReleaseHint(UUID uuid) {
+        return showEntityReleaseHint.getOrDefault(uuid, true);
+    }
+    public void setShowEntityReleaseHint(UUID uuid, boolean enabled) {
+        showEntityReleaseHint.put(uuid, enabled);
+        saveSettings();
+    }
+    public void toggleShowEntityReleaseHint(Player p) {
+        UUID uuid = p.getUniqueId();
+        boolean current = isShowEntityReleaseHint(uuid);
+        showEntityReleaseHint.put(uuid, !current);
+        saveSettings();
+        p.sendMessage("§a实体释放提示已" + (!current ? "§a开启" : "§c关闭"));
+    }
+
+    // ========== 检查实体释放频率并提示 ==========
+    public boolean checkAndNotifyEntityRelease(Player p) {
+        UUID uuid = p.getUniqueId();
+        if (!isShowEntityReleaseHint(uuid)) {
+            return false; // 已关闭，不检查
+        }
+
+        long now = System.currentTimeMillis();
+        Long lastTime = lastEntityReleaseTime.get(uuid);
+        Integer count = entityReleaseCount.get(uuid);
+
+        if (lastTime == null || count == null) {
+            // 首次或重置
+            lastEntityReleaseTime.put(uuid, now);
+            entityReleaseCount.put(uuid, 1);
+            return true;
+        }
+
+        if (now - lastTime <= 1000) {
+            // 1秒内
+            int newCount = count + 1;
+            entityReleaseCount.put(uuid, newCount);
+            if (newCount >= 3) {
+                // 达到3次，提示关闭
+                p.sendMessage("§e⚠ 检测到频繁释放实体，如需关闭提示请在：个人设置 → 实体释放提示 关闭");
+                // 重置计数
+                lastEntityReleaseTime.remove(uuid);
+                entityReleaseCount.remove(uuid);
+                return false; // 已达到阈值，不再显示普通提示
+            }
+            return true;
+        } else {
+            // 超过1秒，重置
+            lastEntityReleaseTime.put(uuid, now);
+            entityReleaseCount.put(uuid, 1);
+            return true;
+        }
     }
 
     public int getSneakCount(UUID uuid) { return sneakCount.getOrDefault(uuid, 0); }
@@ -370,6 +437,19 @@ public class PersonalSettings implements Listener {
             btn7.setItemMeta(m7);
         }
 
+        // ========== 实体释放提示开关按钮 ==========
+        ItemStack btn8 = new ItemStack(Material.ENDER_EYE);
+        ItemMeta m8 = btn8.getItemMeta();
+        if (m8 != null) {
+            boolean showHint = isShowEntityReleaseHint(uuid);
+            m8.setDisplayName("§b实体释放提示: " + (showHint ? "§a开启" : "§c关闭"));
+            m8.setLore(List.of(
+                    "§7开启后释放实体会显示提示",
+                    "§7频繁释放会自动提示关闭"
+            ));
+            btn8.setItemMeta(m8);
+        }
+
         ItemStack backMain = new ItemStack(Material.STONE);
         ItemMeta backMeta = backMain.getItemMeta();
         if (backMeta != null) {
@@ -383,6 +463,7 @@ public class PersonalSettings implements Listener {
         inv.setItem(20, btn5);
         inv.setItem(22, btn6);
         inv.setItem(21, btn7);
+        inv.setItem(23, btn8);
         inv.setItem(26, backMain);
         p.openInventory(inv);
     }
@@ -398,6 +479,7 @@ public class PersonalSettings implements Listener {
                 .toggle("§b 传送请求UI", isTpRequestGuiEnabled(uuid))
                 .toggle("§d 禁止幻翼生成", isDisablePhantomSpawn(uuid))
                 .toggle("§6 允许被骑乘", isAllowBeRidden(uuid))
+                .toggle("§b 实体释放提示", isShowEntityReleaseHint(uuid))
                 .validResultHandler((CustomFormResponse res) -> {
                     receiveAnnounce.put(uuid, res.getToggle(0));
                     quickMenuEnabled.put(uuid, res.getToggle(1));
@@ -405,6 +487,7 @@ public class PersonalSettings implements Listener {
                     tpRequestGuiEnabled.put(uuid, res.getToggle(3));
                     disablePhantomSpawn.put(uuid, res.getToggle(4));
                     allowBeRidden.put(uuid, res.getToggle(5));
+                    showEntityReleaseHint.put(uuid, res.getToggle(6));
 
                     saveSettings();
                     p.sendMessage("§a✅ 设置已保存！");
@@ -473,6 +556,7 @@ public class PersonalSettings implements Listener {
             case CHEST -> toggleTpRequestGui(p);
             case PHANTOM_MEMBRANE -> toggleDisablePhantomSpawn(p);
             case SADDLE -> toggleAllowBeRidden(p);
+            case ENDER_EYE -> toggleShowEntityReleaseHint(p);
         }
         openSettingsUI(p);
     }
