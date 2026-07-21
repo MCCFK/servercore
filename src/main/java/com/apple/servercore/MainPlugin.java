@@ -58,6 +58,7 @@ public class MainPlugin extends JavaPlugin {
     private final Set<UUID> openWorkbenchPlayers = new HashSet<>();
     public com.mccfk.plugin.managers.ActionManager actionManager;
     public com.mccfk.plugin.commands.CarryCommand carryCommand;
+    public com.mccfk.plugin.commands.AdminCatcherCommand adminCatcherCommand;
 
     // 服务器配置
     public String serverName = "§5Architecture Craft";
@@ -159,7 +160,7 @@ public class MainPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(carryCommand, this);
 
             // ========== 管理员生物捕捉器 ==========
-            AdminCatcherCommand adminCatcherCommand = new AdminCatcherCommand(this, carryCommand);
+            adminCatcherCommand = new AdminCatcherCommand(this, carryCommand);
             setExecutorIfExists("admincatcher", adminCatcherCommand);
             getServer().getPluginManager().registerEvents(adminCatcherCommand, this);
 
@@ -204,6 +205,9 @@ public class MainPlugin extends JavaPlugin {
 
         // ========== MCCFK 清理 ==========
         saveTasks.put("MCCFK工作台数据", () -> openWorkbenchPlayers.clear());
+        saveTasks.put("管理员捕捉器", () -> {
+            if (adminCatcherCommand != null) adminCatcherCommand.shutdownCleanup();
+        });
         saveTasks.put("玩家家数据", () -> {
             if (playerDataManager != null) playerDataManager.saveHomes();
         });

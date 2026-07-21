@@ -20,6 +20,7 @@ import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -629,6 +630,58 @@ public class CarryCommand implements CommandExecutor, Listener {
         }
     }
 
+    // ========== 发射器支持 ==========
+
+    @EventHandler
+    public void onDispenserDispenseEntity(BlockDispenseEvent event) {
+        ItemStack item = event.getItem();
+        if (item.getType().isAir() || !item.hasItemMeta()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        if (!meta.getPersistentDataContainer().has(carryFlagKey, PersistentDataType.BYTE)) return;
+
+        String nbtString = meta.getPersistentDataContainer().get(entityNbtKey, PersistentDataType.STRING);
+        String typeStr = meta.getPersistentDataContainer().get(entityTypeKey, PersistentDataType.STRING);
+        if (nbtString == null || typeStr == null) return;
+
+        event.setCancelled(true);
+
+        Block block = event.getBlock();
+        BlockFace facing = BlockFace.NORTH;
+        if (block.getBlockData() instanceof org.bukkit.block.data.Directional directional) {
+            facing = directional.getFacing();
+        }
+        Location spawnLoc = block.getLocation().add(0.5, 0.5, 0.5).add(facing.getDirection().multiply(1.0));
+
+        try {
+            deserializeAndSpawn(spawnLoc.getWorld(), spawnLoc, nbtString);
+        } catch (Exception e) {
+            plugin.getLogger().warning("§c[搬运] 发射器释放实体失败: " + e.getMessage());
+            return;
+        }
+
+        // 从发射器移除已使用的物品
+        if (block.getState() instanceof org.bukkit.block.Dispenser dispenser) {
+            for (int i = 0; i < dispenser.getInventory().getSize(); i++) {
+                ItemStack slot = dispenser.getInventory().getItem(i);
+                if (slot == null || slot.getType().isAir()) continue;
+                if (!slot.hasItemMeta()) continue;
+                ItemMeta slotMeta = slot.getItemMeta();
+                if (slotMeta == null) continue;
+                if (slotMeta.getPersistentDataContainer().has(carryFlagKey, PersistentDataType.BYTE)) {
+                    if (slot.getAmount() > 1) {
+                        slot.setAmount(slot.getAmount() - 1);
+                    } else {
+                        dispenser.getInventory().setItem(i, null);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     // ========== 序列化实体（纯 Bukkit API） ==========
     public String serializeEntityFullNbt(LivingEntity living) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -1014,6 +1067,10 @@ public class CarryCommand implements CommandExecutor, Listener {
             data.put("iron_golem_player_created", ironGolem.isPlayerCreated());
         }
 
+        // ---- 苦力怕 ----
+        if (living instanceof Creeper creeper) {
+            data.put("creeper_powered", creeper.isPowered());
+        }
 
     }
 
@@ -1679,6 +1736,13 @@ public class CarryCommand implements CommandExecutor, Listener {
         if (living instanceof IronGolem ironGolem) {
             if (data.containsKey("iron_golem_player_created")) {
                 ironGolem.setPlayerCreated((boolean) data.get("iron_golem_player_created"));
+            }
+        }
+
+        // ---- 苦力怕 ----
+        if (living instanceof Creeper creeper) {
+            if (data.containsKey("creeper_powered")) {
+                creeper.setPowered((boolean) data.get("creeper_powered"));
             }
         }
     }
