@@ -17,11 +17,6 @@ public class SuicideCommand implements CommandExecutor {
             return true;
         }
 
-        if (!sender.hasPermission("mccfk.suicide")) {
-            sender.sendMessage("§c你没有权限使用此命令！");
-            return true;
-        }
-
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         ItemStack offHand = player.getInventory().getItemInOffHand();
 

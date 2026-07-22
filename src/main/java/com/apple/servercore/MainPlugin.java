@@ -33,6 +33,8 @@ import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 
 import static org.bukkit.GameMode.SURVIVAL;
@@ -59,6 +61,7 @@ public class MainPlugin extends JavaPlugin {
     public com.mccfk.plugin.managers.ActionManager actionManager;
     public com.mccfk.plugin.commands.CarryCommand carryCommand;
     public com.mccfk.plugin.commands.AdminCatcherCommand adminCatcherCommand;
+    public com.mccfk.plugin.commands.FireworkCommand fireworkCommand;
 
     // 服务器配置
     public String serverName = "§5Architecture Craft";
@@ -164,6 +167,17 @@ public class MainPlugin extends JavaPlugin {
             setExecutorIfExists("admincatcher", adminCatcherCommand);
             getServer().getPluginManager().registerEvents(adminCatcherCommand, this);
 
+            // ========== 烟花编辑器 ==========
+            fireworkCommand = new FireworkCommand(this);
+            setExecutorIfExists("firework", fireworkCommand);
+            getServer().getPluginManager().registerEvents(fireworkCommand, this);
+
+            // ========== 公共路径点 ==========
+            PublicWaypointCommand publicWaypointCommand = new PublicWaypointCommand(this);
+            setExecutorIfExists("publicwaypoint", publicWaypointCommand);
+            setExecutorIfExists("pwtp", publicWaypointCommand);
+            tpAsMe.setPublicWaypointCommand(publicWaypointCommand);
+
             // ========== 获取技术实体 ==========
             TechEntityCommand techEntityCommand = new TechEntityCommand(this, carryCommand);
             setExecutorIfExists("获取技术实体", techEntityCommand);
@@ -185,6 +199,9 @@ public class MainPlugin extends JavaPlugin {
         }, 1);
 
         getLogger().info("§aServerCore 插件已成功启用！");
+
+        // ========== 等所有插件加载完，提升指令优先级 ==========
+        Bukkit.getScheduler().runTaskLater(this, this::prioritizeCommands, 1L);
     }
 
     @Override
@@ -1067,7 +1084,7 @@ public class MainPlugin extends JavaPlugin {
             return;
         }
 
-        if (title.contains("传送") || title.contains("玩家")) {
+        if (tpAsMe.isOurGuiTitle(title)) {
             tpAsMe.handleClick(p, currentItem);
             return;
         }
@@ -1198,6 +1215,47 @@ public class MainPlugin extends JavaPlugin {
             }
         } catch (Exception e) {
             getLogger().warning("注册命令 " + commandName + " 失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 提升指令优先级：强制覆盖其他插件已注册的同名指令
+     */
+    private void prioritizeCommands() {
+        try {
+            Method getCommandMap = Bukkit.getServer().getClass().getDeclaredMethod("getCommandMap");
+            Object commandMap = getCommandMap.invoke(Bukkit.getServer());
+            Field knownCommandsField = commandMap.getClass().getDeclaredField("knownCommands");
+            knownCommandsField.setAccessible(true);
+            Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+
+            // 收集属于我们插件的指令
+            List<Command> ourCommands = new ArrayList<>();
+            for (Command cmd : knownCommands.values()) {
+                if (cmd instanceof PluginCommand pc && pc.getPlugin() == this) {
+                    ourCommands.add(cmd);
+                }
+            }
+
+            // 从 map 中移除旧记录
+            for (Command cmd : ourCommands) {
+                knownCommands.remove(cmd.getName().toLowerCase());
+                for (String alias : cmd.getAliases()) {
+                    knownCommands.remove(alias.toLowerCase());
+                }
+            }
+
+            // 重新注册（覆盖其他插件的同名指令）
+            for (Command cmd : ourCommands) {
+                knownCommands.put(cmd.getName().toLowerCase(), cmd);
+                for (String alias : cmd.getAliases()) {
+                    knownCommands.put(alias.toLowerCase(), cmd);
+                }
+            }
+
+            getLogger().info("§a已提升全部指令优先级，共 " + ourCommands.size() + " 个");
+        } catch (Exception e) {
+            getLogger().warning("§e提升指令优先级失败: " + e.getMessage());
         }
     }
 

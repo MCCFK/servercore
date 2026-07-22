@@ -273,10 +273,8 @@ commands:
     description: 公共路径点系统
     usage: /<command> <create|tp|remove|tremove> [名称]
     aliases: [pw]
-
-  pwtp:
-    description: 传送到公开路径点
-    usage: /<command> [名称]
+    permission: mccfk.publicwaypoint
+    permission-message: §c你没有权限使用公共路径点！
 
   # ========== 邀请码系统 ==========
   invite:
