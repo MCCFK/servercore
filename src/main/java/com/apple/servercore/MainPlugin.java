@@ -1,5 +1,7 @@
 package com.apple.servercore;
 
+import com.apple.servercore.TpAsMe.TpAsMe;
+import com.apple.servercore.TpAsMe.TpAsMePoint;
 import com.apple.servercore.acmusic.Music;
 import com.apple.servercore.economicsystem.*;
 import com.apple.servercore.guild.Guilds;
@@ -7,9 +9,6 @@ import com.apple.servercore.Gift.Gift;
 import com.apple.servercore.Gift.GiftListener;
 import com.apple.servercore.ranking.Ranking;
 import com.mccfk.plugin.commands.*;
-import com.mccfk.plugin.commands.CarryCommand;
-import com.mccfk.plugin.invite.InviteCodeManager;
-import com.mccfk.plugin.invite.InviteCommand;
 import com.mccfk.plugin.listeners.PlayerListener;
 import com.mccfk.plugin.managers.PlayerDataManager;
 import net.kyori.adventure.text.Component;
@@ -27,14 +26,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.*;
 
 import static org.bukkit.GameMode.SURVIVAL;
@@ -53,15 +49,11 @@ public class MainPlugin extends JavaPlugin {
     private ACcraft acCraft;
     public Ranking ranking;
     public PersonalSettings personalSettings;
-    public InviteCodeManager inviteCodeManager;
 
     // ====================== MCCFK 模块 ======================
     private PlayerDataManager playerDataManager;
     private final Set<UUID> openWorkbenchPlayers = new HashSet<>();
     public com.mccfk.plugin.managers.ActionManager actionManager;
-    public com.mccfk.plugin.commands.CarryCommand carryCommand;
-    public com.mccfk.plugin.commands.AdminCatcherCommand adminCatcherCommand;
-    public com.mccfk.plugin.commands.FireworkCommand fireworkCommand;
 
     // 服务器配置
     public String serverName = "§5Architecture Craft";
@@ -123,9 +115,6 @@ public class MainPlugin extends JavaPlugin {
         ranking = new Ranking(this);
         getCommand("accraft").setExecutor(acCraft);
 
-        // 邀请码系统
-        inviteCodeManager = new InviteCodeManager(this);
-
         // 动作管理（骑行/坐下/趴下/躺下）
         actionManager = new com.mccfk.plugin.managers.ActionManager(this);
 
@@ -153,37 +142,10 @@ public class MainPlugin extends JavaPlugin {
             setExecutorIfExists("ride", new com.mccfk.plugin.commands.RideCommand(this));
             setExecutorIfExists("sit", new com.mccfk.plugin.commands.SitCommand(this));
 
-            // ========== 搬运指令 ==========
-            carryCommand = new CarryCommand(this);
-            setExecutorIfExists("carry", carryCommand);
-            setExecutorIfExists("fuckcarry", carryCommand);
-            setExecutorIfExists("unfuckcarry", carryCommand);
-            setExecutorIfExists("bancarry", carryCommand);
-            setExecutorIfExists("unbancarry", carryCommand);
-            getServer().getPluginManager().registerEvents(carryCommand, this);
-
-            // ========== 管理员生物捕捉器 ==========
-            adminCatcherCommand = new AdminCatcherCommand(this, carryCommand);
-            setExecutorIfExists("admincatcher", adminCatcherCommand);
-            getServer().getPluginManager().registerEvents(adminCatcherCommand, this);
-
-            // ========== 烟花编辑器 ==========
-            fireworkCommand = new FireworkCommand(this);
-            setExecutorIfExists("firework", fireworkCommand);
-            getServer().getPluginManager().registerEvents(fireworkCommand, this);
-
-            // ========== 公共路径点 ==========
-            PublicWaypointCommand publicWaypointCommand = new PublicWaypointCommand(this);
-            setExecutorIfExists("publicwaypoint", publicWaypointCommand);
-            setExecutorIfExists("pwtp", publicWaypointCommand);
-            tpAsMe.setPublicWaypointCommand(publicWaypointCommand);
-
-            // ========== 获取技术实体 ==========
-            TechEntityCommand techEntityCommand = new TechEntityCommand(this, carryCommand);
-            setExecutorIfExists("获取技术实体", techEntityCommand);
-
             getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
+            // ========== 临时修复：伤害间隔冷却 ==========
+            new DamageCooldownFix(this);
         } catch (Exception e) {
             getLogger().severe("MCCFK 模块初始化失败: " + e.getMessage());
             e.printStackTrace();
@@ -199,9 +161,6 @@ public class MainPlugin extends JavaPlugin {
         }, 1);
 
         getLogger().info("§aServerCore 插件已成功启用！");
-
-        // ========== 等所有插件加载完，提升指令优先级 ==========
-        Bukkit.getScheduler().runTaskLater(this, this::prioritizeCommands, 1L);
     }
 
     @Override
@@ -222,9 +181,6 @@ public class MainPlugin extends JavaPlugin {
 
         // ========== MCCFK 清理 ==========
         saveTasks.put("MCCFK工作台数据", () -> openWorkbenchPlayers.clear());
-        saveTasks.put("管理员捕捉器", () -> {
-            if (adminCatcherCommand != null) adminCatcherCommand.shutdownCleanup();
-        });
         saveTasks.put("玩家家数据", () -> {
             if (playerDataManager != null) playerDataManager.saveHomes();
         });
@@ -269,9 +225,6 @@ public class MainPlugin extends JavaPlugin {
         });
         saveTasks.put("玩家个人设置", () -> {
             if (personalSettings != null) personalSettings.saveSettings();
-        });
-        saveTasks.put("邀请码数据", () -> {
-            if (inviteCodeManager != null) inviteCodeManager.saveCodes();
         });
         saveTasks.put("服务器配置", this::saveServerConfig);
 
@@ -412,19 +365,6 @@ public class MainPlugin extends JavaPlugin {
             }
         } catch (Exception e) {
             getLogger().severe("注册苹果币/飞行指令失败: " + e.getMessage());
-        }
-
-        // ========== 邀请码指令 ==========
-        try {
-            InviteCommand inviteCmd = new InviteCommand(this, inviteCodeManager);
-            PluginCommand invitePluginCmd = getCommand("invite");
-            if (invitePluginCmd != null) {
-                invitePluginCmd.setExecutor(inviteCmd);
-                invitePluginCmd.setTabCompleter(inviteCmd);
-                getLogger().info("✅ invite 命令已注册");
-            }
-        } catch (Exception e) {
-            getLogger().severe("注册 invite 命令失败: " + e.getMessage());
         }
     }
 
@@ -883,18 +823,9 @@ public class MainPlugin extends JavaPlugin {
 
         @EventHandler
         public void onQuit(PlayerQuitEvent e){
-            Player p = e.getPlayer();
-            UUID uuid = p.getUniqueId();
+            UUID uuid = e.getPlayer().getUniqueId();
             personalSettings.removePlayerData(uuid);
             playerShopPages.remove(uuid);
-
-            // 退出时关闭飞行状态，防止离线后继续扣时间
-            if (economicSystem != null && economicSystem.getAcFly() != null) {
-                ACFly acFly = economicSystem.getAcFly();
-                if (acFly.isFlying(p)) {
-                    acFly.toggleFlight(p);
-                }
-            }
         }
 
         // ⚠️ 注意：这里没有 onChat 方法
@@ -1084,7 +1015,7 @@ public class MainPlugin extends JavaPlugin {
             return;
         }
 
-        if (tpAsMe.isOurGuiTitle(title)) {
+        if (title.contains("传送") || title.contains("玩家")) {
             tpAsMe.handleClick(p, currentItem);
             return;
         }
@@ -1215,47 +1146,6 @@ public class MainPlugin extends JavaPlugin {
             }
         } catch (Exception e) {
             getLogger().warning("注册命令 " + commandName + " 失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 提升指令优先级：强制覆盖其他插件已注册的同名指令
-     */
-    private void prioritizeCommands() {
-        try {
-            Method getCommandMap = Bukkit.getServer().getClass().getDeclaredMethod("getCommandMap");
-            Object commandMap = getCommandMap.invoke(Bukkit.getServer());
-            Field knownCommandsField = commandMap.getClass().getDeclaredField("knownCommands");
-            knownCommandsField.setAccessible(true);
-            Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
-
-            // 收集属于我们插件的指令
-            List<Command> ourCommands = new ArrayList<>();
-            for (Command cmd : knownCommands.values()) {
-                if (cmd instanceof PluginCommand pc && pc.getPlugin() == this) {
-                    ourCommands.add(cmd);
-                }
-            }
-
-            // 从 map 中移除旧记录
-            for (Command cmd : ourCommands) {
-                knownCommands.remove(cmd.getName().toLowerCase());
-                for (String alias : cmd.getAliases()) {
-                    knownCommands.remove(alias.toLowerCase());
-                }
-            }
-
-            // 重新注册（覆盖其他插件的同名指令）
-            for (Command cmd : ourCommands) {
-                knownCommands.put(cmd.getName().toLowerCase(), cmd);
-                for (String alias : cmd.getAliases()) {
-                    knownCommands.put(alias.toLowerCase(), cmd);
-                }
-            }
-
-            getLogger().info("§a已提升全部指令优先级，共 " + ourCommands.size() + " 个");
-        } catch (Exception e) {
-            getLogger().warning("§e提升指令优先级失败: " + e.getMessage());
         }
     }
 

@@ -204,87 +204,11 @@ commands:
     permission: mccfk.ride
     permission-message: §c你没有权限使用此命令！
 
-  fuck:
-    description: 甩下骑乘者
-    usage: /<command>
-    permission: mccfk.ride
-    permission-message: §c你没有权限使用此命令！
-
   sit:
     description: 原地坐下
     usage: /<command>
     permission: mccfk.sit
     permission-message: §c你没有权限使用此命令！
-
-  carry:
-    description: 将目标实体变成生物蛋
-    usage: /<command>
-    permission: mccfk.carry
-    permission-message: §c你没有权限使用此命令！
-
-  admincatcher:
-    description: 获取管理员生物捕捉器 / Get admin catcher
-    usage: /<command>
-    aliases: [acatcher, 获取管理员生物捕捉器]
-    permission: mccfk.admincatcher
-    permission-message: §c你没有权限使用此命令！
-
-  fuckcarry:
-    description: 禁止玩家使用搬运
-    usage: /<command> <玩家>
-    permission: mccfk.carry.ban
-    permission-message: §c你没有权限使用此命令！
-
-  unfuckcarry:
-    description: 允许玩家使用搬运
-    usage: /<command> <玩家>
-    permission: mccfk.carry.ban
-    permission-message: §c你没有权限使用此命令！
-
-  bancarry:
-    description: 禁止玩家使用搬运
-    usage: /<command> <玩家>
-    permission: mccfk.carry.ban
-    permission-message: §c你没有权限使用此命令！
-
-  unbancarry:
-    description: 允许玩家使用搬运
-    usage: /<command> <玩家>
-    permission: mccfk.carry.ban
-    permission-message: §c你没有权限使用此命令！
-
-  # ========== 获取技术实体 ==========
-  获取技术实体:
-    description: 获取所有技术实体的蛋
-    usage: /<command>
-    permission: mccfk.admincatcher
-    permission-message: §c你没有权限使用此命令！
-
-  # ========== 烟花编辑器 ==========
-  firework:
-    description: 打开烟花编辑器
-    usage: /<command>
-    aliases: [烟花编辑, 烟花]
-    permission: mccfk.admincatcher
-    permission-message: §c你没有权限使用此命令！
-
-  # ========== 公共路径点 ==========
-  publicwaypoint:
-    description: 公共路径点系统
-    usage: /<command> <create|tp|remove|tremove> [名称]
-    aliases: [pw]
-
-  pwtp:
-    description: 传送到公开路径点
-    usage: /<command> [名称]
-
-  # ========== 邀请码系统 ==========
-  invite:
-    description: 邀请码系统
-    usage: /<command> <create|input>
-    aliases: [邀请码]
-    permission: servercore.user
-    permission-message: §c你没有权限使用邀请码系统！
 
 permissions:
   servercore.op:
@@ -299,7 +223,6 @@ permissions:
     children:
       servercore.pvp.use: true
       servercore.guild.use: true
-      mccfk.suicide: true
 
   servercore.pvp.use:
     default: true
@@ -360,24 +283,4 @@ permissions:
   mccfk.sit:
     description: 允许使用 /sit 命令
     default: true
-
-  mccfk.carry:
-    description: 允许使用 /carry 命令
-    default: true
-
-  mccfk.carry.ban:
-    description: 允许使用 /fuckcarry /bancarry 命令禁止玩家搬运
-    default: op
-
-  mccfk.admincatcher:
-    description: 允许使用 /admincatcher 和 /获取技术实体 命令
-    default: op
-
-  mccfk.publicwaypoint:
-    description: 允许使用 /publicwaypoint 命令
-    default: true
-
-  mccfk.publicwaypoint.admin:
-    description: 允许管理公共路径点
-    default: op
 

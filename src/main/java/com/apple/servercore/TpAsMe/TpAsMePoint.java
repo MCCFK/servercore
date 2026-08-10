@@ -1,5 +1,7 @@
-package com.apple.servercore;
+package com.apple.servercore.TpAsMe;
 
+import com.apple.servercore.ACcraft;
+import com.apple.servercore.MainPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;

@@ -16,6 +16,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.geysermc.cumulus.form.SimpleForm;
 import org.geysermc.cumulus.response.SimpleFormResponse;
+import org.geysermc.cumulus.util.FormImage;
 import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.util.List;
@@ -61,19 +62,19 @@ public class ACcraft implements CommandExecutor, Listener {
             SimpleForm form = SimpleForm.builder()
                     .title("§6主菜单")
                     .content("§7欢迎回来，请选择功能")
-                    .button("§a服务器商店")
-                    .button("§c物品出售")
-                    .button("§e每日签到")
-                    .button("§b传送系统")
-                    .button("§6工会系统")
-                    .button("§d音乐系统")
-                    .button("§f称号系统")          // 新增：称号系统
-                    .button("§9个人信息")
-                    .button("§6苹果币系统")
-                    .button("§b服务器排行榜")
-                    .button("§a银行")
-                    .button("§7服务器公告")
-                    .button("§a便捷功能")
+                    .button("§a服务器商店", FormImage.Type.PATH, "textures/ui/store_home_icon")
+                    .button("§c物品出售", FormImage.Type.PATH, "textures/ui/trash")
+                    .button("§e每日签到", FormImage.Type.PATH, "textures/items/totem")
+                    .button("§b传送系统", FormImage.Type.PATH, "textures/ui/move")
+                    .button("§6工会系统", FormImage.Type.PATH, "textures/items/iron_sword")
+                    .button("§d音乐系统", FormImage.Type.PATH, "textures/items/record_13")
+                    .button("§f称号系统", FormImage.Type.PATH, "textures/items/name_tag")
+                    .button("§9个人信息", FormImage.Type.PATH, "textures/items/paper")
+                    .button("§6苹果币系统", FormImage.Type.PATH, "textures/items/apple_golden")
+                    .button("§b服务器排行榜", FormImage.Type.PATH, "textures/items/diamond")
+                    .button("§a银行", FormImage.Type.PATH, "textures/items/gold_ingot")
+                    .button("§e服务器公告", FormImage.Type.PATH, "textures/items/book_normal")
+                    .button("§a便捷功能", FormImage.Type.PATH, "textures/items/iron_pickaxe")
                     .validResultHandler((SimpleFormResponse response) -> {
                         int id = response.clickedButtonId();
                         switch (id) {
@@ -83,7 +84,7 @@ public class ACcraft implements CommandExecutor, Listener {
                             case 3 -> plugin.getTpAsMe().openMainUI(player);
                             case 4 -> plugin.guildManager.openMainMenu(player);
                             case 5 -> plugin.music.openMain(player);
-                            case 6 -> player.performCommand("plt open");   // 称号系统
+                            case 6 -> player.performCommand("plt open");
                             case 7 -> plugin.openPlayerInfoUI(player);
                             case 8 -> player.performCommand("applecoins info");
                             case 9 -> plugin.ranking.openRankMenu(player);
@@ -123,7 +124,7 @@ public class ACcraft implements CommandExecutor, Listener {
 
         // 第二行
         menu.setItem(19, item(Material.JUKEBOX, "§d音乐系统"));
-        menu.setItem(21, item(Material.NAME_TAG, "§f称号系统"));   // 新增：称号系统
+        menu.setItem(21, item(Material.NAME_TAG, "§f称号系统"));
         menu.setItem(23, item(Material.PLAYER_HEAD, "§9个人信息"));
         menu.setItem(25, item(Material.GOLDEN_APPLE, "§6苹果币系统"));
 
@@ -134,11 +135,11 @@ public class ACcraft implements CommandExecutor, Listener {
         menu.setItem(32, item(Material.BOOK, "§7服务器公告"));
         menu.setItem(34, item(Material.DIAMOND, "§b服务器排行榜"));
 
-        // 第四行 - 银行按钮（排行榜下面一格）
+        // 第四行 - 银行按钮
         ItemStack bank = new ItemStack(Material.GOLD_BLOCK);
         ItemMeta bankMeta = bank.getItemMeta();
         bankMeta.setDisplayName("§a银行");
-        bankMeta.setLore(List.of("§724点游戏 | 老虎机"));
+        bankMeta.setLore(List.of("§7开发中"));
         bankMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
         bankMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         bank.setItemMeta(bankMeta);
@@ -168,12 +169,12 @@ public class ACcraft implements CommandExecutor, Listener {
         inv.setItem(23, item(Material.GRAY_WOOL, "§b返回上一个位置", "§7发送/back也有同样的效果"));
         inv.setItem(24, item(Material.GRAY_WOOL, "§b返回死亡点", "§7发送/dback也有同样的效果"));
 
+        // ========== 新增：垃圾桶 ==========
+        inv.setItem(25, item(Material.BARREL, "§c🗑 垃圾桶", "§7点击打开垃圾桶 /cyuclear bin"));
+
         // 便捷动作
         inv.setItem(30, item(Material.SADDLE, "§6骑乘", "§7/ride - 骑乘目标实体或玩家"));
         inv.setItem(31, item(Material.OAK_STAIRS, "§6坐下", "§7/sit - 原地坐下"));
-
-        // 实体捕捉器
-        inv.setItem(32, item(Material.BLAZE_ROD, "§b实体捕捉器", "§7右键获取实体捕捉器"));
 
         inv.setItem(49, item(Material.BARRIER, "§7⬅️ 返回主菜单"));
 
@@ -188,16 +189,16 @@ public class ACcraft implements CommandExecutor, Listener {
             SimpleForm form = SimpleForm.builder()
                     .title("§6便捷功能")
                     .content("§7请选择要使用的功能")
-                    .button("§a便捷工作台")
-                    .button("§5便捷末影箱")
-                    .button("§c自杀")
-                    .button("§b随机传送")
-                    .button("§b返回上一个位置")
-                    .button("§b返回死亡点")
-                    .button("§6骑乘")
-                    .button("§6坐下")
-                    .button("§b实体捕捉器")
-                    .button("§7⬅️ 返回主菜单")
+                    .button("§a便捷工作台", FormImage.Type.PATH, "textures/items/iron_pickaxe")
+                    .button("§5便捷末影箱", FormImage.Type.PATH, "textures/items/ender_pearl")
+                    .button("§c自杀", FormImage.Type.PATH, "textures/items/bucket_lava")
+                    .button("§b随机传送", FormImage.Type.PATH, "textures/items/ender_pearl")
+                    .button("§b返回上一个位置", FormImage.Type.PATH, "textures/ui/arrow_left")
+                    .button("§b返回死亡点", FormImage.Type.PATH, "textures/ui/arrow_left")
+                    .button("§c🗑 垃圾桶", FormImage.Type.PATH, "textures/items/barrel")  // 新增：垃圾桶
+                    .button("§6骑乘", FormImage.Type.PATH, "textures/items/saddle")
+                    .button("§6坐下", FormImage.Type.PATH, "textures/items/saddle")
+                    .button("§c返回主菜单", FormImage.Type.PATH, "textures/ui/arrow_left")
                     .validResultHandler((SimpleFormResponse response) -> {
                         switch (response.clickedButtonId()) {
                             case 0 -> p.performCommand("craftingtable");
@@ -206,9 +207,9 @@ public class ACcraft implements CommandExecutor, Listener {
                             case 3 -> p.performCommand("rtp");
                             case 4 -> p.performCommand("back");
                             case 5 -> p.performCommand("dback");
-                            case 6 -> p.performCommand("ride");
-                            case 7 -> p.performCommand("sit");
-                            case 8 -> plugin.carryCommand.giveCatcherItem(p);
+                            case 6 -> p.performCommand("cyuclear bin");  // 垃圾桶命令
+                            case 7 -> p.performCommand("ride");
+                            case 8 -> p.performCommand("sit");
                             case 9 -> openMainMenu(p);
                         }
                     })
@@ -265,25 +266,18 @@ public class ACcraft implements CommandExecutor, Listener {
             p.closeInventory();
 
             switch (cur.getType()) {
-                // 第一行
                 case EMERALD -> plugin.economicSystem.openShop(p);
                 case HOPPER -> plugin.economicSystem.openSell(p);
                 case CLOCK -> plugin.gift.openGiftUI(p);
                 case ENDER_PEARL -> plugin.getTpAsMe().openMainUI(p);
                 case GOLDEN_SWORD -> plugin.openGuildMainUI(p);
-
-                // 第二行
                 case JUKEBOX -> plugin.music.openMain(p);
-                case NAME_TAG -> p.performCommand("plt open");   // 新增：称号系统
+                case NAME_TAG -> p.performCommand("plt open");
                 case PLAYER_HEAD -> plugin.openPlayerInfoUI(p);
                 case GOLDEN_APPLE -> p.performCommand("applecoins info");
-
-                // 第三行
                 case BOOK -> plugin.handleBook(p);
                 case DIAMOND -> plugin.ranking.openRankMenu(p);
                 case GOLD_BLOCK -> plugin.ranking.openJavaBankMenu(p);
-
-                // 便捷功能
                 case COMPASS -> openConvenientGUI(p);
             }
         }
@@ -310,6 +304,15 @@ public class ACcraft implements CommandExecutor, Listener {
             e.setCancelled(true);
             if (clicked != top || cur == null || !cur.hasItemMeta()) return;
 
+            String displayName = cur.getItemMeta().getDisplayName();
+
+            // 处理垃圾桶
+            if (cur.getType() == Material.BARREL) {
+                p.closeInventory();
+                p.performCommand("cyuclear bin");
+                return;
+            }
+
             switch (cur.getType()) {
                 case CRAFTING_TABLE -> {
                     p.closeInventory();
@@ -334,8 +337,6 @@ public class ACcraft implements CommandExecutor, Listener {
                     p.closeInventory();
                     openMainMenu(p);
                 }
-
-                // 便捷动作
                 case SADDLE -> {
                     p.closeInventory();
                     p.performCommand("ride");
@@ -343,10 +344,6 @@ public class ACcraft implements CommandExecutor, Listener {
                 case OAK_STAIRS -> {
                     p.closeInventory();
                     p.performCommand("sit");
-                }
-                case BLAZE_ROD -> {
-                    p.closeInventory();
-                    plugin.carryCommand.giveCatcherItem(p);
                 }
             }
         }

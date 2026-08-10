@@ -29,7 +29,7 @@ public class AppleCoinsPlaceholderExpansion extends PlaceholderExpansion {
     // 持久化：插件重载不丢失注册
     @Override
     public boolean persist() {
-        return false;
+        return true;
     }
 
     // 移除错误的 requiredPlugin，返回 null

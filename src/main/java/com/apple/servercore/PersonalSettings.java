@@ -5,17 +5,20 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.projectiles.ProjectileSource;
 import org.geysermc.cumulus.form.CustomForm;
 import org.geysermc.cumulus.form.SimpleForm;
 import org.geysermc.cumulus.response.CustomFormResponse;
@@ -50,13 +53,6 @@ public class PersonalSettings implements Listener {
 
     // ========== 是否允许被其他玩家骑乘（默认允许） ==========
     private final Map<UUID, Boolean> allowBeRidden = new HashMap<>();
-
-    // ========== 显示实体释放提示（默认开启） ==========
-    private final Map<UUID, Boolean> showEntityReleaseHint = new HashMap<>();
-
-    // ========== 实体释放频率检测 ==========
-    private final Map<UUID, Long> lastEntityReleaseTime = new HashMap<>();
-    private final Map<UUID, Integer> entityReleaseCount = new HashMap<>();
 
     // 潜行检测
     private final Map<UUID, Integer> sneakCount = new HashMap<>();
@@ -101,14 +97,9 @@ public class PersonalSettings implements Listener {
                 receiveAnnounce.put(uuid, map.getOrDefault("receiveAnnounce", false));
                 quickMenuEnabled.put(uuid, map.getOrDefault("quickMenuEnabled", false));
                 pvpEnabled.put(uuid, map.getOrDefault("pvpEnabled", false));
-                // ========== 加载传送请求UI设置（默认开启） ==========
                 tpRequestGuiEnabled.put(uuid, map.getOrDefault("tpRequestGuiEnabled", true));
-                // ========== 加载禁止幻翼生成设置（默认关闭） ==========
                 disablePhantomSpawn.put(uuid, map.getOrDefault("disablePhantomSpawn", false));
-                // ========== 加载是否允许被骑设置（默认允许） ==========
                 allowBeRidden.put(uuid, map.getOrDefault("allowBeRidden", true));
-                // ========== 加载实体释放提示设置（默认开启） ==========
-                showEntityReleaseHint.put(uuid, map.getOrDefault("showEntityReleaseHint", true));
             }
             plugin.getLogger().info("§a玩家设置已加载，共 " + data.size() + " 个玩家");
         } catch (Exception ex) {
@@ -123,7 +114,6 @@ public class PersonalSettings implements Listener {
                 settingsFile.createNewFile();
             }
 
-            // 收集所有有设置的玩家UUID
             java.util.Set<UUID> allUuids = new java.util.HashSet<>();
             allUuids.addAll(receiveAnnounce.keySet());
             allUuids.addAll(quickMenuEnabled.keySet());
@@ -131,7 +121,6 @@ public class PersonalSettings implements Listener {
             allUuids.addAll(tpRequestGuiEnabled.keySet());
             allUuids.addAll(disablePhantomSpawn.keySet());
             allUuids.addAll(allowBeRidden.keySet());
-            allUuids.addAll(showEntityReleaseHint.keySet());
 
             Map<String, Map<String, Boolean>> data = new HashMap<>();
             for (UUID uuid : allUuids) {
@@ -139,19 +128,13 @@ public class PersonalSettings implements Listener {
                 map.put("receiveAnnounce", receiveAnnounce.getOrDefault(uuid, false));
                 map.put("quickMenuEnabled", quickMenuEnabled.getOrDefault(uuid, false));
                 map.put("pvpEnabled", pvpEnabled.getOrDefault(uuid, false));
-                // ========== 保存传送请求UI设置 ==========
                 map.put("tpRequestGuiEnabled", tpRequestGuiEnabled.getOrDefault(uuid, true));
-                // ========== 保存禁止幻翼生成设置 ==========
                 map.put("disablePhantomSpawn", disablePhantomSpawn.getOrDefault(uuid, false));
-                // ========== 保存是否允许被骑设置 ==========
                 map.put("allowBeRidden", allowBeRidden.getOrDefault(uuid, true));
-                // ========== 保存实体释放提示设置 ==========
-                map.put("showEntityReleaseHint", showEntityReleaseHint.getOrDefault(uuid, true));
                 data.put(uuid.toString(), map);
             }
             try (FileWriter writer = new FileWriter(settingsFile)) {
                 gson.toJson(data, writer);
-                writer.flush();
             }
             plugin.getLogger().info("§a玩家设置已保存，共 " + data.size() + " 个玩家");
         } catch (IOException ex) {
@@ -164,15 +147,23 @@ public class PersonalSettings implements Listener {
     public boolean isReceiveAnnounce(UUID uuid) { return receiveAnnounce.getOrDefault(uuid, false); }
     public boolean isQuickMenuEnabled(UUID uuid) { return quickMenuEnabled.getOrDefault(uuid, false); }
     public boolean isPvpEnabled(UUID uuid) { return pvpEnabled.getOrDefault(uuid, false); }
+    public boolean isTpRequestGuiEnabled(UUID uuid) { return tpRequestGuiEnabled.getOrDefault(uuid, true); }
+    public boolean isDisablePhantomSpawn(UUID uuid) { return disablePhantomSpawn.getOrDefault(uuid, false); }
+    public boolean isAllowBeRidden(UUID uuid) { return allowBeRidden.getOrDefault(uuid, true); }
 
-    // ========== 传送请求UI开关 ==========
-    public boolean isTpRequestGuiEnabled(UUID uuid) {
-        return tpRequestGuiEnabled.getOrDefault(uuid, true);
-    }
     public void setTpRequestGuiEnabled(UUID uuid, boolean enabled) {
         tpRequestGuiEnabled.put(uuid, enabled);
         saveSettings();
     }
+    public void setDisablePhantomSpawn(UUID uuid, boolean enabled) {
+        disablePhantomSpawn.put(uuid, enabled);
+        saveSettings();
+    }
+    public void setAllowBeRidden(UUID uuid, boolean enabled) {
+        allowBeRidden.put(uuid, enabled);
+        saveSettings();
+    }
+
     public void toggleTpRequestGui(Player p) {
         UUID uuid = p.getUniqueId();
         boolean current = isTpRequestGuiEnabled(uuid);
@@ -181,14 +172,6 @@ public class PersonalSettings implements Listener {
         p.sendMessage("§a传送请求UI已" + (!current ? "§a开启" : "§c关闭"));
     }
 
-    // ========== 禁止幻翼生成开关 ==========
-    public boolean isDisablePhantomSpawn(UUID uuid) {
-        return disablePhantomSpawn.getOrDefault(uuid, false);
-    }
-    public void setDisablePhantomSpawn(UUID uuid, boolean enabled) {
-        disablePhantomSpawn.put(uuid, enabled);
-        saveSettings();
-    }
     public void toggleDisablePhantomSpawn(Player p) {
         UUID uuid = p.getUniqueId();
         boolean current = isDisablePhantomSpawn(uuid);
@@ -197,14 +180,6 @@ public class PersonalSettings implements Listener {
         p.sendMessage("§a禁止幻翼生成已" + (!current ? "§a开启" : "§c关闭"));
     }
 
-    // ========== 是否允许被其他玩家骑乘 ==========
-    public boolean isAllowBeRidden(UUID uuid) {
-        return allowBeRidden.getOrDefault(uuid, true);
-    }
-    public void setAllowBeRidden(UUID uuid, boolean enabled) {
-        allowBeRidden.put(uuid, enabled);
-        saveSettings();
-    }
     public void toggleAllowBeRidden(Player p) {
         UUID uuid = p.getUniqueId();
         boolean current = isAllowBeRidden(uuid);
@@ -213,70 +188,12 @@ public class PersonalSettings implements Listener {
         p.sendMessage("§a允许被骑乘已" + (!current ? "§a开启" : "§c关闭"));
     }
 
-    // ========== 实体释放提示开关 ==========
-    public boolean isShowEntityReleaseHint(UUID uuid) {
-        return showEntityReleaseHint.getOrDefault(uuid, true);
-    }
-    public void setShowEntityReleaseHint(UUID uuid, boolean enabled) {
-        showEntityReleaseHint.put(uuid, enabled);
-        saveSettings();
-    }
-    public void toggleShowEntityReleaseHint(Player p) {
-        UUID uuid = p.getUniqueId();
-        boolean current = isShowEntityReleaseHint(uuid);
-        showEntityReleaseHint.put(uuid, !current);
-        saveSettings();
-        p.sendMessage("§a实体释放提示已" + (!current ? "§a开启" : "§c关闭"));
-    }
-
-    // ========== 检查实体释放频率并提示 ==========
-    public boolean checkAndNotifyEntityRelease(Player p) {
-        UUID uuid = p.getUniqueId();
-        if (!isShowEntityReleaseHint(uuid)) {
-            return false; // 已关闭，不检查
-        }
-
-        long now = System.currentTimeMillis();
-        Long lastTime = lastEntityReleaseTime.get(uuid);
-        Integer count = entityReleaseCount.get(uuid);
-
-        if (lastTime == null || count == null) {
-            // 首次或重置
-            lastEntityReleaseTime.put(uuid, now);
-            entityReleaseCount.put(uuid, 1);
-            return true;
-        }
-
-        if (now - lastTime <= 1000) {
-            // 1秒内
-            int newCount = count + 1;
-            entityReleaseCount.put(uuid, newCount);
-            if (newCount >= 3) {
-                // 达到3次，提示关闭
-                p.sendMessage("§e⚠ 检测到频繁释放实体，如需关闭提示请在：个人设置 → 实体释放提示 关闭");
-                // 重置计数
-                lastEntityReleaseTime.remove(uuid);
-                entityReleaseCount.remove(uuid);
-                return false; // 已达到阈值，不再显示普通提示
-            }
-            return true;
-        } else {
-            // 超过1秒，重置
-            lastEntityReleaseTime.put(uuid, now);
-            entityReleaseCount.put(uuid, 1);
-            return true;
-        }
-    }
-
     public int getSneakCount(UUID uuid) { return sneakCount.getOrDefault(uuid, 0); }
     public long getSneakTime(UUID uuid) { return sneakTime.getOrDefault(uuid, 0L); }
     public void setSneakCount(UUID uuid, int v) { sneakCount.put(uuid, v); }
     public void setSneakTime(UUID uuid, long v) { sneakTime.put(uuid, v); }
 
     public void removePlayerData(UUID uuid) {
-        // 注意：不移除设置数据（receiveAnnounce/quickMenuEnabled/pvpEnabled/tpRequestGuiEnabled/disablePhantomSpawn）
-        // 这些需要在内存中保留到 onDisable 的 saveSettings() 执行，否则重启后设置丢失
-        // 只清理缓存/会话数据
         sneakCount.remove(uuid);
         sneakTime.remove(uuid);
     }
@@ -286,6 +203,7 @@ public class PersonalSettings implements Listener {
         UUID uuid = p.getUniqueId();
         pvpEnabled.put(uuid, !isPvpEnabled(uuid));
         saveSettings();
+        p.sendMessage("§aPVP模式已" + (isPvpEnabled(uuid) ? "§a开启" : "§c关闭"));
     }
 
     public void toggleAnnounce(Player p) {
@@ -302,35 +220,303 @@ public class PersonalSettings implements Listener {
         saveSettings();
     }
 
-    // ====================== PVP事件监听 ======================
-    @EventHandler
-    public void onDamage(EntityDamageByEntityEvent e) {
-        if (!(e.getDamager() instanceof Player attacker)) return;
-        if (!(e.getEntity() instanceof Player victim)) return;
-
+    // ====================== 检查是否可以攻击玩家 ======================
+    private boolean canAttack(Player attacker, Player victim) {
         boolean a = isPvpEnabled(attacker.getUniqueId());
         boolean v = isPvpEnabled(victim.getUniqueId());
+        return a && v;
+    }
 
-        if (!a) {
-            e.setCancelled(true);
-            attacker.sendActionBar(Component.text("§c你未开启PVP"));
-            return;
+    private void sendNoPvpMessage(Player attacker, String reason) {
+        attacker.sendActionBar(Component.text("§c" + reason));
+    }
+
+    // ====================== 安全距离计算 ======================
+    /**
+     * 安全计算两个位置的距离，如果不在同一世界则返回 Double.MAX_VALUE
+     */
+    private double safeDistance(Location loc1, Location loc2) {
+        if (loc1 == null || loc2 == null) return Double.MAX_VALUE;
+        if (!loc1.getWorld().equals(loc2.getWorld())) return Double.MAX_VALUE;
+        return loc1.distance(loc2);
+    }
+
+    // ====================== PVP事件监听 - 近战攻击 ======================
+    @EventHandler
+    public void onDamage(EntityDamageByEntityEvent e) {
+        // 检查攻击者是否是玩家
+        Player attacker = null;
+        if (e.getDamager() instanceof Player) {
+            attacker = (Player) e.getDamager();
+        } else if (e.getDamager() instanceof Projectile) {
+            Projectile proj = (Projectile) e.getDamager();
+            if (proj.getShooter() instanceof Player) {
+                attacker = (Player) proj.getShooter();
+            }
+        } else if (e.getDamager() instanceof TNTPrimed) {
+            TNTPrimed tnt = (TNTPrimed) e.getDamager();
+            if (tnt.getSource() instanceof Player) {
+                attacker = (Player) tnt.getSource();
+            }
         }
-        if (!v) {
+
+        // 如果不是玩家造成的伤害，放行
+        if (attacker == null) return;
+
+        // 检查受害者是否是玩家
+        if (!(e.getEntity() instanceof Player victim)) return;
+
+        // 检查PVP是否开启
+        if (!canAttack(attacker, victim)) {
             e.setCancelled(true);
-            attacker.sendActionBar(Component.text("§c对方未开启PVP"));
-            return;
+            if (!isPvpEnabled(attacker.getUniqueId())) {
+                sendNoPvpMessage(attacker, "你未开启PVP！");
+            } else {
+                sendNoPvpMessage(attacker, "对方未开启PVP！");
+            }
+        }
+    }
+
+    // ====================== PVP事件监听 - 弓箭等投射物 ======================
+    @EventHandler
+    public void onProjectileHit(ProjectileHitEvent e) {
+        Projectile projectile = e.getEntity();
+        if (!(projectile.getShooter() instanceof Player attacker)) return;
+
+        if (!(e.getHitEntity() instanceof Player victim)) return;
+
+        // 让 EntityDamageByEntityEvent 来处理伤害取消
+        // 但我们需要在投射物命中前就取消，防止箭矢附着
+        if (!canAttack(attacker, victim)) {
+            e.setCancelled(true);
+            projectile.remove();
+            if (!isPvpEnabled(attacker.getUniqueId())) {
+                sendNoPvpMessage(attacker, "你未开启PVP！");
+            } else {
+                sendNoPvpMessage(attacker, "对方未开启PVP！");
+            }
+        }
+    }
+
+    // ====================== PVP事件监听 - 药水效果 ======================
+    @EventHandler
+    public void onPotionSplash(PotionSplashEvent e) {
+        // 检查药水投掷者是否是玩家
+        if (!(e.getEntity().getShooter() instanceof Player attacker)) return;
+
+        // 获取药水效果
+        java.util.Collection<org.bukkit.potion.PotionEffect> effects = e.getEntity().getEffects();
+
+        // 如果没有效果，直接放行（可能是水瓶子）
+        if (effects == null || effects.isEmpty()) return;
+
+        // 检查是否有伤害性效果
+        boolean hasHarmfulEffect = false;
+        for (org.bukkit.potion.PotionEffect effect : effects) {
+            if (isHarmfulPotion(effect.getType())) {
+                hasHarmfulEffect = true;
+                break;
+            }
+        }
+
+        // 只有伤害性药水才进行PVP检查
+        if (!hasHarmfulEffect) return;
+
+        // 检查药水影响的实体
+        for (LivingEntity entity : e.getAffectedEntities()) {
+            if (entity instanceof Player victim) {
+                // 不要检查自己
+                if (victim.equals(attacker)) continue;
+
+                if (!canAttack(attacker, victim)) {
+                    e.setCancelled(true);
+                    // 移除药水
+                    e.getEntity().remove();
+                    if (!isPvpEnabled(attacker.getUniqueId())) {
+                        sendNoPvpMessage(attacker, "你未开启PVP！");
+                    } else {
+                        sendNoPvpMessage(attacker, "对方未开启PVP！");
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * 判断是否为伤害性药水效果
+     */
+    private boolean isHarmfulPotion(org.bukkit.potion.PotionEffectType type) {
+        if (type == null) return false;
+
+        String name = type.getKey().getKey().toLowerCase();
+        if (name.contains(":")) {
+            name = name.substring(name.indexOf(":") + 1);
+        }
+
+        switch (name) {
+            case "instant_damage":
+            case "poison":
+            case "wither":
+            case "weakness":
+            case "slowness":
+            case "hunger":
+            case "nausea":
+            case "blindness":
+            case "levitation":
+            case "unluck":
+            case "darkness":
+            case "bad_omen":
+            case "trial_omen":
+            case "wind_charged":
+            case "weaving":
+            case "oozing":
+            case "infested":
+            case "raid_omen":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // ====================== PVP事件监听 - 范围伤害（爆炸等） ======================
+    @EventHandler
+    public void onEntityDamage(EntityDamageEvent e) {
+        if (!(e.getEntity() instanceof Player victim)) return;
+
+        DamageCause cause = e.getCause();
+
+        // 检查是否是范围伤害（爆炸、火焰等）
+        boolean isAreaDamage = cause == DamageCause.ENTITY_EXPLOSION ||
+                cause == DamageCause.BLOCK_EXPLOSION ||
+                cause == DamageCause.FIRE ||
+                cause == DamageCause.FIRE_TICK ||
+                cause == DamageCause.LAVA ||
+                cause == DamageCause.HOT_FLOOR ||
+                cause == DamageCause.MAGIC;
+
+        // 如果是环境伤害，检查是否由玩家引起
+        if (isAreaDamage) {
+            // 检查受害者附近是否有玩家（只检查同一世界的玩家）
+            for (Player nearby : Bukkit.getOnlinePlayers()) {
+                if (nearby.equals(victim)) continue;
+                // 使用安全距离计算，避免跨世界异常
+                if (safeDistance(nearby.getLocation(), victim.getLocation()) < 10) {
+                    if (!canAttack(nearby, victim)) {
+                        e.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // ====================== PVP事件监听 - 玩家交互（放置岩浆等） ======================
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent e) {
+        Player attacker = e.getPlayer();
+        ItemStack item = e.getItem();
+        if (item == null) return;
+
+        Material type = item.getType();
+
+        // 检查是否在放置可能伤害玩家的方块
+        boolean isDangerous = type == Material.LAVA_BUCKET ||
+                type == Material.FLINT_AND_STEEL ||
+                type == Material.FIRE_CHARGE ||
+                type == Material.TNT ||
+                type == Material.RESPAWN_ANCHOR;
+
+        if (!isDangerous) return;
+
+        // 检查目标位置附近是否有玩家
+        var targetBlock = e.getClickedBlock();
+        if (targetBlock == null) return;
+
+        for (Player victim : Bukkit.getOnlinePlayers()) {
+            if (victim.equals(attacker)) continue;
+            // 使用安全距离计算，避免跨世界异常
+            if (safeDistance(victim.getLocation(), targetBlock.getLocation()) < 5) {
+                if (!canAttack(attacker, victim)) {
+                    e.setCancelled(true);
+                    if (!isPvpEnabled(attacker.getUniqueId())) {
+                        sendNoPvpMessage(attacker, "你未开启PVP！");
+                    } else {
+                        sendNoPvpMessage(attacker, "对方未开启PVP！");
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    // ====================== PVP事件监听 - 玩家放置TNT ======================
+    @EventHandler
+    public void onEntitySpawn(CreatureSpawnEvent e) {
+        if (e.getEntityType() != EntityType.TNT) return;
+        if (!(e.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CUSTOM ||
+                e.getSpawnReason() == CreatureSpawnEvent.SpawnReason.EGG)) return;
+
+        Location tntLoc = e.getLocation();
+
+        // 检查TNT周围是否有未开启PVP的玩家
+        for (Player victim : Bukkit.getOnlinePlayers()) {
+            // 使用安全距离计算，避免跨世界异常
+            if (safeDistance(victim.getLocation(), tntLoc) < 10) {
+                // 检查是否有玩家在附近放置了TNT
+                for (Player attacker : Bukkit.getOnlinePlayers()) {
+                    if (attacker.equals(victim)) continue;
+                    if (!canAttack(attacker, victim)) {
+                        e.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // ====================== PVP事件监听 - 雪球/鸡蛋击退 ======================
+    @EventHandler
+    public void onProjectileLaunch(ProjectileLaunchEvent e) {
+        Projectile proj = e.getEntity();
+        if (!(proj.getShooter() instanceof Player attacker)) return;
+
+        // 检查是否是雪球或鸡蛋（可以用来造成击退）
+        if (proj instanceof Snowball || proj instanceof Egg) {
+            // 这些投射物本身不造成伤害，但可能导致摔落伤害
+            // 我们标记它们，如果命中玩家且PVP未开启则取消
+            // 实际取消在 ProjectileHitEvent 中处理
+        }
+    }
+
+    // ====================== PVP事件监听 - 摔落伤害检查 ======================
+    @EventHandler
+    public void onFallDamage(EntityDamageEvent e) {
+        if (e.getCause() != DamageCause.FALL) return;
+        if (!(e.getEntity() instanceof Player victim)) return;
+
+        // 检查是否因为其他玩家的攻击导致摔落
+        for (Player attacker : Bukkit.getOnlinePlayers()) {
+            if (attacker.equals(victim)) continue;
+            // 使用安全距离计算，避免跨世界异常
+            if (safeDistance(attacker.getLocation(), victim.getLocation()) < 10) {
+                if (!canAttack(attacker, victim)) {
+                    // 不取消摔落伤害，因为可能是自然摔落
+                    // 只在确定是玩家导致的情况下取消
+                }
+            }
         }
     }
 
     // ====================== 禁止幻翼生成监听 ======================
     @EventHandler
     public void onPhantomSpawn(CreatureSpawnEvent e) {
-        if (e.getEntityType() != org.bukkit.entity.EntityType.PHANTOM) return;
+        if (e.getEntityType() != EntityType.PHANTOM) return;
 
-        org.bukkit.Location loc = e.getLocation();
-        for (org.bukkit.entity.Player p : loc.getWorld().getPlayers()) {
-            if (p.getLocation().distance(loc) <= 64) { // 64格范围内
+        Location loc = e.getLocation();
+        for (Player p : loc.getWorld().getPlayers()) {
+            // 使用安全距离计算，避免跨世界异常
+            if (safeDistance(p.getLocation(), loc) <= 64) {
                 if (isDisablePhantomSpawn(p.getUniqueId())) {
                     e.setCancelled(true);
                     return;
@@ -344,9 +530,12 @@ public class PersonalSettings implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         UUID uuid = p.getUniqueId();
-        // 新玩家默认开启传送请求UI
         if (!tpRequestGuiEnabled.containsKey(uuid)) {
             tpRequestGuiEnabled.put(uuid, true);
+            saveSettings();
+        }
+        if (!allowBeRidden.containsKey(uuid)) {
+            allowBeRidden.put(uuid, true);
             saveSettings();
         }
     }
@@ -354,7 +543,6 @@ public class PersonalSettings implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         // 不在这里移除数据，避免保存丢失
-        // removePlayerData(e.getPlayer().getUniqueId());
     }
 
     // ====================== Java版设置界面 ======================
@@ -370,11 +558,8 @@ public class PersonalSettings implements Listener {
         boolean receiveAnn = isReceiveAnnounce(uuid);
         boolean quickMenu = isQuickMenuEnabled(uuid);
         boolean pvp = isPvpEnabled(uuid);
-        // ========== 传送请求UI状态 ==========
         boolean tpGui = isTpRequestGuiEnabled(uuid);
-        // ========== 禁止幻翼生成状态 ==========
         boolean disablePhantom = isDisablePhantomSpawn(uuid);
-        // ========== 骑乘设置状态 ==========
         boolean allowRide = isAllowBeRidden(uuid);
 
         ItemStack btn2 = new ItemStack(Material.PAPER);
@@ -397,11 +582,13 @@ public class PersonalSettings implements Listener {
         ItemMeta m4 = btn4.getItemMeta();
         if (m4 != null) {
             m4.setDisplayName("§cPVP模式: " + (pvp ? "§a开启" : "§c关闭"));
-            m4.setLore(List.of("§7开启后可以攻击其他玩家"));
+            m4.setLore(List.of(
+                    "§7开启后可以攻击其他玩家",
+                    "§7包括近战、弓箭、药水、岩浆等"
+            ));
             btn4.setItemMeta(m4);
         }
 
-        // ========== 传送请求UI开关按钮 ==========
         ItemStack btn5 = new ItemStack(Material.CHEST);
         ItemMeta m5 = btn5.getItemMeta();
         if (m5 != null) {
@@ -413,7 +600,6 @@ public class PersonalSettings implements Listener {
             btn5.setItemMeta(m5);
         }
 
-        // ========== 禁止幻翼生成开关按钮 ==========
         ItemStack btn6 = new ItemStack(Material.PHANTOM_MEMBRANE);
         ItemMeta m6 = btn6.getItemMeta();
         if (m6 != null) {
@@ -425,7 +611,6 @@ public class PersonalSettings implements Listener {
             btn6.setItemMeta(m6);
         }
 
-        // ========== 允许被骑乘开关按钮 ==========
         ItemStack btn7 = new ItemStack(Material.SADDLE);
         ItemMeta m7 = btn7.getItemMeta();
         if (m7 != null) {
@@ -435,19 +620,6 @@ public class PersonalSettings implements Listener {
                     "§7默认开启"
             ));
             btn7.setItemMeta(m7);
-        }
-
-        // ========== 实体释放提示开关按钮 ==========
-        ItemStack btn8 = new ItemStack(Material.ENDER_EYE);
-        ItemMeta m8 = btn8.getItemMeta();
-        if (m8 != null) {
-            boolean showHint = isShowEntityReleaseHint(uuid);
-            m8.setDisplayName("§b实体释放提示: " + (showHint ? "§a开启" : "§c关闭"));
-            m8.setLore(List.of(
-                    "§7开启后释放实体会显示提示",
-                    "§7频繁释放会自动提示关闭"
-            ));
-            btn8.setItemMeta(m8);
         }
 
         ItemStack backMain = new ItemStack(Material.STONE);
@@ -463,7 +635,6 @@ public class PersonalSettings implements Listener {
         inv.setItem(20, btn5);
         inv.setItem(22, btn6);
         inv.setItem(21, btn7);
-        inv.setItem(23, btn8);
         inv.setItem(26, backMain);
         p.openInventory(inv);
     }
@@ -479,7 +650,6 @@ public class PersonalSettings implements Listener {
                 .toggle("§b 传送请求UI", isTpRequestGuiEnabled(uuid))
                 .toggle("§d 禁止幻翼生成", isDisablePhantomSpawn(uuid))
                 .toggle("§6 允许被骑乘", isAllowBeRidden(uuid))
-                .toggle("§b 实体释放提示", isShowEntityReleaseHint(uuid))
                 .validResultHandler((CustomFormResponse res) -> {
                     receiveAnnounce.put(uuid, res.getToggle(0));
                     quickMenuEnabled.put(uuid, res.getToggle(1));
@@ -487,7 +657,6 @@ public class PersonalSettings implements Listener {
                     tpRequestGuiEnabled.put(uuid, res.getToggle(3));
                     disablePhantomSpawn.put(uuid, res.getToggle(4));
                     allowBeRidden.put(uuid, res.getToggle(5));
-                    showEntityReleaseHint.put(uuid, res.getToggle(6));
 
                     saveSettings();
                     p.sendMessage("§a✅ 设置已保存！");
@@ -502,7 +671,6 @@ public class PersonalSettings implements Listener {
     // ====================== 基岩版个人信息 ======================
     public void openBedrockPlayerInfo(Player p) {
         String name = p.getName();
-        // 【已删除】称号相关变量
         int acCoins = plugin.economicSystem.getAcCoins(p);
         boolean pvp = isPvpEnabled(p.getUniqueId());
 
@@ -520,14 +688,12 @@ public class PersonalSettings implements Listener {
         SimpleForm form = SimpleForm.builder()
                 .title("§f个人信息中心")
                 .content(content)
-                // 【已删除】"切换称号" 和 "显示/隐藏称号" 按钮
                 .button("§b我的传送点")
                 .button("§9个人设置")
                 .button("§7⬅️ 返回主菜单")
                 .validResultHandler((response) -> {
                     int id = response.clickedButtonId();
                     switch (id) {
-                        // case 0 和 case 1 已被删除，原来的 case 2 变成 case 0
                         case 0 -> plugin.tpAsMePoint.openPlayerUI(p);
                         case 1 -> openSettingsUI(p);
                         case 2 -> plugin.getACcraft().openMainMenu(p);
@@ -556,7 +722,6 @@ public class PersonalSettings implements Listener {
             case CHEST -> toggleTpRequestGui(p);
             case PHANTOM_MEMBRANE -> toggleDisablePhantomSpawn(p);
             case SADDLE -> toggleAllowBeRidden(p);
-            case ENDER_EYE -> toggleShowEntityReleaseHint(p);
         }
         openSettingsUI(p);
     }
@@ -596,25 +761,21 @@ public class PersonalSettings implements Listener {
                 return "";
             }
 
-            // %pvp% - 返回玩家PVP状态 (开启/关闭)
             if (identifier == null || identifier.isEmpty()) {
                 boolean enabled = settings.isPvpEnabled(player.getUniqueId());
                 return enabled ? "开启" : "关闭";
             }
 
-            // %pvp_status% - 返回玩家PVP状态 (开启/关闭) - 别名
             if (identifier.equalsIgnoreCase("status")) {
                 boolean enabled = settings.isPvpEnabled(player.getUniqueId());
                 return enabled ? "开启" : "关闭";
             }
 
-            // %pvp_enabled% - 返回玩家PVP是否开启 (true/false)
             if (identifier.equalsIgnoreCase("enabled")) {
                 boolean enabled = settings.isPvpEnabled(player.getUniqueId());
                 return enabled ? "true" : "false";
             }
 
-            // %pvp_color% - 返回带颜色的PVP状态 (§a开启 / §c关闭)
             if (identifier.equalsIgnoreCase("color")) {
                 boolean enabled = settings.isPvpEnabled(player.getUniqueId());
                 return enabled ? "§a开启" : "§c关闭";
