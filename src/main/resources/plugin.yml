@@ -204,6 +204,12 @@ commands:
     permission: mccfk.ride
     permission-message: §c你没有权限使用此命令！
 
+  fuck:
+    description: 甩下骑乘者
+    usage: /<command>
+    permission: mccfk.ride
+    permission-message: §c你没有权限使用此命令！
+
   sit:
     description: 原地坐下
     usage: /<command>

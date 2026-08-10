@@ -51,6 +51,17 @@ public class MainPlugin extends JavaPlugin {
     public PersonalSettings personalSettings;
 
     // ====================== MCCFK 模块 ======================
+    /**
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * 不要删/fuck
+     * /fuck 是用来把骑你头上的甩下来的谁再删我给他fuck了
+     */
     private PlayerDataManager playerDataManager;
     private final Set<UUID> openWorkbenchPlayers = new HashSet<>();
     public com.mccfk.plugin.managers.ActionManager actionManager;
@@ -139,7 +150,9 @@ public class MainPlugin extends JavaPlugin {
             setExecutorIfExists("w", msgCommand);
 
             // ========== 便捷动作指令 ==========
-            setExecutorIfExists("ride", new com.mccfk.plugin.commands.RideCommand(this));
+            com.mccfk.plugin.commands.RideCommand rideCommand = new com.mccfk.plugin.commands.RideCommand(this);
+            setExecutorIfExists("ride", rideCommand);
+            setExecutorIfExists("fuck", rideCommand);
             setExecutorIfExists("sit", new com.mccfk.plugin.commands.SitCommand(this));
 
             getServer().getPluginManager().registerEvents(new PlayerListener(this), this);

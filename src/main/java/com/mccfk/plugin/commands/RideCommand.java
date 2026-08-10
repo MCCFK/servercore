@@ -10,6 +10,7 @@ import org.bukkit.util.RayTraceResult;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class RideCommand implements CommandExecutor {
@@ -39,6 +40,23 @@ public class RideCommand implements CommandExecutor {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c该命令只能由玩家执行！");
+            return true;
+        }
+
+        // ========== /fuck：甩下骑乘者 ==========
+        if (command.getName().equalsIgnoreCase("fuck")) {
+            if (player.getPassengers().isEmpty()) {
+                player.sendMessage("§c现在没有人骑在你身上");
+                return true;
+            }
+            List<Entity> riders = List.copyOf(player.getPassengers());
+            player.eject();
+            player.sendMessage("§a已将骑乘者甩下来");
+            for (Entity rider : riders) {
+                if (rider instanceof Player riderPlayer) {
+                    riderPlayer.sendMessage("§c你被 " + player.getName() + " 甩了下来");
+                }
+            }
             return true;
         }
 
@@ -99,6 +117,11 @@ public class RideCommand implements CommandExecutor {
 
         target.addPassenger(player);
         player.sendMessage("§a已骑乘 " + (target instanceof Player ? target.getName() : target.getType().name()));
+
+        // 被骑乘的玩家提示：可用 /fuck 将他甩下来
+        if (target instanceof Player targetPlayer) {
+            targetPlayer.sendMessage("§e" + player.getName() + " 骑到了你头上，发 §f/fuck §e将他甩下来！");
+        }
         return true;
     }
 }
