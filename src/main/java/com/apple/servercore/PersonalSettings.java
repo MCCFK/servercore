@@ -386,21 +386,9 @@ public class PersonalSettings implements Listener {
 
         DamageCause cause = e.getCause();
 
-        // 检查是否是范围伤害（爆炸、火焰等）
-        boolean isAreaDamage = cause == DamageCause.ENTITY_EXPLOSION ||
-                cause == DamageCause.BLOCK_EXPLOSION ||
-                cause == DamageCause.FIRE ||
-                cause == DamageCause.FIRE_TICK ||
-                cause == DamageCause.LAVA ||
-                cause == DamageCause.HOT_FLOOR ||
-                cause == DamageCause.MAGIC;
-
-        // 如果是环境伤害，检查是否由玩家引起
-        if (isAreaDamage) {
-            // 检查受害者附近是否有玩家（只检查同一世界的玩家）
+        if (cause == DamageCause.ENTITY_EXPLOSION || cause == DamageCause.BLOCK_EXPLOSION) {
             for (Player nearby : Bukkit.getOnlinePlayers()) {
                 if (nearby.equals(victim)) continue;
-                // 使用安全距离计算，避免跨世界异常
                 if (safeDistance(nearby.getLocation(), victim.getLocation()) < 10) {
                     if (!canAttack(nearby, victim)) {
                         e.setCancelled(true);

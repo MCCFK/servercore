@@ -52,15 +52,17 @@ public class MainPlugin extends JavaPlugin {
 
     // ====================== MCCFK 模块 ======================
     /**
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
-     * 不要删/fuck
+     * 别删/fuck
+     * 别删/fuck
+     * 别删/fuck
+     * 别删/fuck
+     * 别删/fuck
+     * 别删/fuck
      * /fuck 是用来把骑你头上的甩下来的谁再删我给他fuck了
+     * 不光别删fuck也别删这段注释谁删我给谁配了
+     * FuckNeoForge
+     * FuckBUGJANG
+     * Fuck!!!!!!
      */
     private PlayerDataManager playerDataManager;
     private final Set<UUID> openWorkbenchPlayers = new HashSet<>();
@@ -150,15 +152,11 @@ public class MainPlugin extends JavaPlugin {
             setExecutorIfExists("w", msgCommand);
 
             // ========== 便捷动作指令 ==========
-            com.mccfk.plugin.commands.RideCommand rideCommand = new com.mccfk.plugin.commands.RideCommand(this);
-            setExecutorIfExists("ride", rideCommand);
-            setExecutorIfExists("fuck", rideCommand);
+            setExecutorIfExists("ride", new com.mccfk.plugin.commands.RideCommand(this));
             setExecutorIfExists("sit", new com.mccfk.plugin.commands.SitCommand(this));
+            setExecutorIfExists("fuck", new com.mccfk.plugin.commands.FuckCommand(this));
 
             getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-
-            // ========== 临时修复：伤害间隔冷却 ==========
-            new DamageCooldownFix(this);
         } catch (Exception e) {
             getLogger().severe("MCCFK 模块初始化失败: " + e.getMessage());
             e.printStackTrace();
